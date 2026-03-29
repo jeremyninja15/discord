@@ -213,6 +213,7 @@ client.on('interactionCreate', async interaction => {
 /crearbot
 /help
 /invite
+/código
             `,
             ephemeral: true
           });
