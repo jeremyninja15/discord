@@ -1,163 +1,12 @@
-const { REST, Routes } = require('discord.js');
-
-// ================= CONFIG =================
-const TOKEN = process.env.TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-
-// ================= COMANDOS =================
-const commands = [
-
-// 🔹 BASICOS
-{
-name: 'ping',
-description: '🏓 Verifica si el bot está activo'
-},
-
-{
-name: 'nivel',
-description: '📊 Muestra tu nivel actual'
-},
-
-{
-name: 'help',
-description: '📌 Lista de comandos disponibles'
-},
-
-{
-name: 'invite',
-description: '🔗 Obtén el link para invitar el bot'
-},
-
-{
-name: 'panel',
-description: '📲 Abre el panel privado en DM'
-},
-
-{
-name: 'crearbot',
-description: '🤖 Aprende a crear tu propio bot paso a paso'
-},
-
-// 🔹 MODERACION
-{
-name: 'ban',
-description: '🔨 Banea un usuario del servidor',
-options: [
-{
-name: 'usuario',
-description: 'Usuario a banear',
-type: 6,
-required: true
-},
-{
-name: 'razon',
-description: 'Razón del ban',
-type: 3,
-required: false
-}
-]
-},
-
-{
-name: 'kick',
-description: '👢 Expulsa un usuario',
-options: [
-{
-name: 'usuario',
-description: 'Usuario a expulsar',
-type: 6,
-required: true
-},
-{
-name: 'razon',
-description: 'Razón del kick',
-type: 3,
-required: false
-}
-]
-},
-
-{
-name: 'clear',
-description: '🧹 Elimina mensajes (1 a 100)',
-options: [
-{
-name: 'cantidad',
-description: 'Cantidad de mensajes a eliminar',
-type: 4,
-required: true,
-min_value: 1,
-max_value: 100
-}
-]
-},
-
-{
-name: 'warn',
-description: '⚠️ Advierte a un usuario',
-options: [
-{
-name: 'usuario',
-description: 'Usuario a advertir',
-type: 6,
-required: true
-},
-{
-name: 'razon',
-description: 'Razón de la advertencia',
-type: 3,
-required: false
-}
-]
-},
-
-{
-name: 'warns',
-description: '📋 Ver advertencias de un usuario',
-options: [
-{
-name: 'usuario',
-description: 'Usuario',
-type: 6,
-required: true
-}
-]
-}
-
-];
-
-// ================= REGISTRO =================
-const rest = new REST({ version: '10' }).setToken(TOKEN);
-
-(async () => {
-try {
-console.log('🚀 Iniciando registro de comandos...');
-
-if (!TOKEN || !CLIENT_ID) {  
-  throw new Error("❌ Faltan variables de entorno (TOKEN o CLIENT_ID)");  
-}  
-
-await rest.put(  
-  Routes.applicationCommands(CLIENT_ID),  
-  { body: commands }  
-);  
-
-console.log(`✅ ${commands.length} comandos registrados correctamente`);
-
-} catch (error) {
-console.error('❌ Error registrando comandos:', error);
-}
-})();
-
 const {
-Client,
-GatewayIntentBits,
-PermissionsBitField,
-EmbedBuilder,
-ActionRowBuilder,
-ButtonBuilder,
-ButtonStyle,
-AttachmentBuilder
+  Client,
+  GatewayIntentBits,
+  PermissionsBitField,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  AttachmentBuilder
 } = require('discord.js');
 
 const fs = require('fs');
@@ -165,14 +14,14 @@ const archiver = require('archiver');
 
 // ================= CLIENT =================
 const client = new Client({
-intents: [
-GatewayIntentBits.Guilds,
-GatewayIntentBits.GuildMessages,
-GatewayIntentBits.GuildMembers,
-GatewayIntentBits.MessageContent,
-GatewayIntentBits.DirectMessages
-],
-partials: ['CHANNEL']
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.DirectMessages
+  ],
+  partials: ['CHANNEL']
 });
 
 // ================= DATOS =================
@@ -181,283 +30,220 @@ const levels = new Map();
 const warnedTemp = new Map();
 
 if (fs.existsSync('./advertencias.json')) {
-warns = JSON.parse(fs.readFileSync('./advertencias.json'));
+  warns = JSON.parse(fs.readFileSync('./advertencias.json'));
 }
 
 function saveWarns() {
-fs.writeFileSync('./advertencias.json', JSON.stringify(warns, null, 2));
+  fs.writeFileSync('./advertencias.json', JSON.stringify(warns, null, 2));
 }
 
-// ================= PALABRAS =================
+// ================= FILTRO =================
 const blacklist = ['tonto', 'idiota', 'maldicion'];
 
 // ================= READY =================
 client.once('clientReady', () => {
-console.log(🔥 ${client.user.tag} activo);
+  console.log(`🔥 ${client.user.tag} activo`);
 });
 
 // ================= MENSAJES =================
 client.on('messageCreate', async message => {
-if (!message.guild || message.author.bot) return;
+  if (!message.guild || message.author.bot) return;
 
-const msg = message.content.toLowerCase();
+  const msg = message.content.toLowerCase();
 
-// ===== FILTRO =====
-const bad = blacklist.some(p => msg.includes(p));
+  const bad = blacklist.some(p => msg.includes(p));
 
-if (bad) {
+  if (bad) {
+    if (!warnedTemp.has(message.author.id)) {
+      warnedTemp.set(message.author.id, true);
+      return message.reply(`⚠ ${message.author}, evita insultar.`);
+    }
 
-if (!warnedTemp.has(message.author.id)) {  
-  warnedTemp.set(message.author.id, true);  
-  return message.reply(`⚠ ${message.author}, evita insultar.`);  
-}  
+    if (!warns[message.author.id]) warns[message.author.id] = 0;
+    warns[message.author.id]++;
+    saveWarns();
 
-if (!warns[message.author.id]) warns[message.author.id] = 0;  
-warns[message.author.id]++;  
-saveWarns();  
+    let texto = `⚠ ${message.author.tag} tiene ${warns[message.author.id]} advertencias`;
 
-let texto = `⚠ ${message.author.tag} tiene ${warns[message.author.id]} advertencias`;  
+    if (warns[message.author.id] >= 3) {
+      const member = message.guild.members.cache.get(message.author.id);
+      if (member) {
+        await member.ban({ reason: "Exceso de advertencias" });
+        texto += `\n🔨 Baneado`;
+      }
+    }
 
-if (warns[message.author.id] >= 3) {  
-  const member = message.guild.members.cache.get(message.author.id);  
-  if (member) {  
-    await member.ban();  
-    texto += `\n🔨 Baneado por exceso de advertencias`;  
-  }  
-}  
+    warnedTemp.delete(message.author.id);
+    return message.reply(texto);
+  }
 
-warnedTemp.delete(message.author.id);  
-return message.reply(texto);
+  // ===== NIVELES =====
+  const data = levels.get(message.author.id) || { xp: 0, level: 1 };
 
-}
+  data.xp += 10;
 
-// ===== NIVELES =====
-const data = levels.get(message.author.id) || { xp: 0, level: 1 };
+  if (data.xp >= data.level * 100) {
+    data.level++;
+    message.channel.send(`🎉 ${message.author} subió a nivel ${data.level}`);
+  }
 
-data.xp += 10;
-
-if (data.xp >= data.level * 100) {
-data.level++;
-message.channel.send(🎉 ${message.author} subió a nivel ${data.level});
-}
-
-levels.set(message.author.id, data);
+  levels.set(message.author.id, data);
 });
 
 // ================= INTERACCIONES =================
 client.on('interactionCreate', async interaction => {
-try {
-
-// ===== COMANDOS =====  
-if (interaction.isChatInputCommand()) {  
-
-  const user = interaction.options.getUser?.("usuario");  
-
-  switch (interaction.commandName) {  
-
-    case "ping":  
-      return interaction.reply("🏓 Pong!");  
-
-    case "nivel": {  
-      const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };  
-      return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);  
-    }  
-
-    case "warn":  
-      if (!user) return interaction.reply("Usuario no encontrado.");  
-      if (!warns[user.id]) warns[user.id] = 0;  
-      warns[user.id]++;  
-      saveWarns();  
-      return interaction.reply(`⚠ ${user.tag} ahora tiene ${warns[user.id]} warns`);  
-
-    case "warns":  
-      if (!user) return interaction.reply("Usuario no encontrado.");  
-      return interaction.reply(`📋 ${user.tag} tiene ${warns[user.id] || 0} advertencias`);
-
-
-    case "ban":
-  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.BanMembers))
-    return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });
-
-  if (!user) return interaction.reply("❌ Usuario no válido");
-
-  const memberBan = interaction.guild.members.cache.get(user.id);
-  if (!memberBan) return interaction.reply("❌ No encontrado");
-
-  await memberBan.ban({ reason: interaction.options.getString("razon") || "Sin razón" });
-
-  return interaction.reply(`🔨 ${user.tag} fue baneado`);
-
-case "kick":
-  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.KickMembers))
-    return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });
-
-  if (!user) return interaction.reply("❌ Usuario no válido");
-
-  const memberKick = interaction.guild.members.cache.get(user.id);
-  if (!memberKick) return interaction.reply("❌ No encontrado");
-
-  await memberKick.kick(interaction.options.getString("razon") || "Sin razón");
-
-  return interaction.reply(`👢 ${user.tag} fue expulsado`);
-
-case "clear":
-  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ManageMessages))
-    return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });
-
-  const cantidad = interaction.options.getInteger("cantidad");
-
-  await interaction.deferReply({ ephemeral: true });
-  await interaction.channel.bulkDelete(cantidad, true);
-
-  return interaction.editReply(`🧹 ${cantidad} mensajes eliminados`);
-
-case "panel":
   try {
-    await interaction.user.send("📲 Panel privado activado");
-    return interaction.reply({ content: "✅ Revisa tu DM", ephemeral: true });
-  } catch {
-    return interaction.reply({ content: "❌ No puedo enviarte DM", ephemeral: true });
-  }
-      
 
-    case "help":  
-      return interaction.reply({  
-        content: `
+    // ===== COMANDOS =====
+    if (interaction.isChatInputCommand()) {
 
-📌 Comandos:
-/ping
-/nivel
-/warn
-/warns
-/crearbot
-/help
-/invite
-`,
-ephemeral: true
-});
+      const user = interaction.options.getUser("usuario");
+      const razon = interaction.options.getString("razon");
 
-case "invite":  
-      return interaction.reply({  
-        content: `🔗 Invita el bot:
+      switch (interaction.commandName) {
 
-https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`,
-ephemeral: true
-});
+        case "ping":
+          return interaction.reply("🏓 Pong!");
 
-case "crearbot":  
+        case "nivel": {
+          const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
+          return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);
+        }
 
-      const embed = new EmbedBuilder()  
-        .setColor("Purple")  
-        .setTitle("🤖 Crear tu bot")  
-        .setDescription("Usa los botones 👇");  
+        case "warn":
+          if (!user) return interaction.reply("❌ Usuario no válido");
+          if (!warns[user.id]) warns[user.id] = 0;
+          warns[user.id]++;
+          saveWarns();
+          return interaction.reply(`⚠ ${user.tag} tiene ${warns[user.id]} advertencias`);
 
-      const row = new ActionRowBuilder().addComponents(  
-        new ButtonBuilder().setCustomId("paso1").setLabel("Crear bot").setStyle(ButtonStyle.Primary),  
-        new ButtonBuilder().setCustomId("paso2").setLabel("Token").setStyle(ButtonStyle.Primary),  
-        new ButtonBuilder().setCustomId("archivos").setLabel("📄 Archivos base").setStyle(ButtonStyle.Secondary),  
-        new ButtonBuilder().setCustomId("zip").setLabel("📦 Descargar bot").setStyle(ButtonStyle.Success)  
-      );  
+        case "warns":
+          return interaction.reply(`📋 ${user.tag} tiene ${warns[user.id] || 0} advertencias`);
 
-      return interaction.reply({ embeds: [embed], components: [row] });  
-  }  
-}  
+        case "ban":
+          if (!interaction.memberPermissions.has(PermissionsBitField.Flags.BanMembers))
+            return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });
 
-// ===== BOTONES =====  
-if (interaction.isButton()) {  
+          const memberBan = interaction.guild.members.cache.get(user.id);
+          if (!memberBan) return interaction.reply("❌ No encontrado");
 
-  if (interaction.customId === "paso1") {  
-    return interaction.reply({  
-      content: "👉 https://discord.com/developers/applications → New Application → Bot",  
-      ephemeral: true  
-    });  
-  }  
+          await memberBan.ban({ reason: razon || "Sin razón" });
+          return interaction.reply(`🔨 ${user.tag} baneado`);
 
-  if (interaction.customId === "paso2") {  
-    return interaction.reply({  
-      content: "🔑 Bot → Reset Token → copia tu TOKEN",  
-      ephemeral: true  
-    });  
-  }  
+        case "kick":
+          if (!interaction.memberPermissions.has(PermissionsBitField.Flags.KickMembers))
+            return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });
 
-  if (interaction.customId === "archivos") {  
-    return interaction.reply({  
-      content: `
+          const memberKick = interaction.guild.members.cache.get(user.id);
+          if (!memberKick) return interaction.reply("❌ No encontrado");
 
-📦 ARCHIVOS BASE
+          await memberKick.kick(razon || "Sin razón");
+          return interaction.reply(`👢 ${user.tag} expulsado`);
+
+        case "clear":
+          if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ManageMessages))
+            return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });
+
+          const cantidad = interaction.options.getInteger("cantidad");
+
+          await interaction.deferReply({ ephemeral: true });
+          await interaction.channel.bulkDelete(cantidad, true);
+
+          return interaction.editReply(`🧹 ${cantidad} mensajes eliminados`);
+
+        case "panel":
+          try {
+            await interaction.user.send("📲 Panel activado");
+            return interaction.reply({ content: "✅ Revisa tu DM", ephemeral: true });
+          } catch {
+            return interaction.reply({ content: "❌ No puedo enviarte DM", ephemeral: true });
+          }
+
+        case "crearbot":
+
+          const embed = new EmbedBuilder()
+            .setColor("Purple")
+            .setTitle("🤖 Crear tu bot PRO")
+            .setDescription("Guía completa con archivos y descarga");
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId("archivos").setLabel("📄 Ver archivos").setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId("zip").setLabel("📦 Descargar bot").setStyle(ButtonStyle.Success)
+          );
+
+          return interaction.reply({ embeds: [embed], components: [row] });
+      }
+    }
+
+    // ===== BOTONES =====
+    if (interaction.isButton()) {
+
+      if (interaction.customId === "archivos") {
+        return interaction.reply({
+          content: `
+📦 ARCHIVOS COMPLETOS
 
 📄 index.js
-```js
+\`\`\`js
 const { Client, GatewayIntentBits } = require('discord.js');
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-client.once('clientReady', () => console.log("Bot listo"));
+client.once('ready', () => console.log("Bot listo"));
 client.login("TU_TOKEN");
-```
+\`\`\`
 
 📄 package.json
-```json
+\`\`\`json
 {
-"name": "mi-bot",
-"version": "1.0.0",
-"main": "index.js",
-"dependencies": {
-"discord.js": "^14.0.0"
+  "name": "bot-pro",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "discord.js": "^14.0.0"
+  }
 }
-}
-```
-`,
-ephemeral: true
-});
-}
+\`\`\`
 
-if (interaction.customId === "zip") {  
+📄 .env
+TOKEN=tu_token_aqui
+          `,
+          ephemeral: true
+        });
+      }
 
-    const output = fs.createWriteStream('./bot.zip');  
-    const archive = archiver('zip');  
+      if (interaction.customId === "zip") {
 
-    archive.pipe(output);  
+        const output = fs.createWriteStream('./bot.zip');
+        const archive = archiver('zip');
 
-    archive.append(`const { Client, GatewayIntentBits } = require('discord.js');
+        archive.pipe(output);
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-client.once('clientReady', () => console.log("Bot listo"));
-client.login("TU_TOKEN");`, { name: 'index.js' });
+        archive.append(`console.log("Bot base listo");`, { name: 'index.js' });
+        archive.append(`{ "name": "bot", "version": "1.0.0" }`, { name: 'package.json' });
 
-archive.append(`{
+        await archive.finalize();
 
-"name": "mi-bot",
-"version": "1.0.0",
-"main": "index.js",
-"dependencies": {
-"discord.js": "^14.0.0"
-}
-}`, { name: 'package.json' });
+        setTimeout(async () => {
+          const file = new AttachmentBuilder('./bot.zip');
+          await interaction.reply({
+            content: "📦 Aquí tienes tu bot",
+            files: [file],
+            ephemeral: true
+          });
+        }, 1000);
+      }
+    }
 
-await archive.finalize();  
+  } catch (error) {
+    console.error(error);
 
-    setTimeout(async () => {  
-      const file = new AttachmentBuilder('./bot.zip');  
-      await interaction.reply({  
-        content: "📦 Aquí tienes tu bot:",  
-        files: [file],  
-        ephemeral: true  
-      });  
-    }, 1000);  
-  }  
-}
-
-} catch (error) {
-console.error(error);
-
-if (interaction.isRepliable() && !interaction.replied) {  
-  await interaction.reply({  
-    content: "⚠ Error en el bot",  
-    ephemeral: true  
-  });  
-}
-
-}
+    if (interaction.isRepliable() && !interaction.replied) {
+      await interaction.reply({
+        content: "⚠ Error en el bot",
+        ephemeral: true
+      });
+    }
+  }
 });
 
 // ================= LOGIN =================
