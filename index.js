@@ -12,6 +12,7 @@ const {
 const fs = require('fs');
 const archiver = require('archiver');
 
+// ================= CLIENT =================
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -78,7 +79,7 @@ client.on('messageCreate', async message => {
     return message.reply(texto);
   }
 
-  // ===== NIVELES (SEPARADO) =====
+  // ===== NIVELES =====
   const data = levels.get(message.author.id) || { xp: 0, level: 1 };
 
   data.xp += 10;
@@ -95,13 +96,167 @@ client.on('messageCreate', async message => {
 client.on('interactionCreate', async interaction => {
   try {
 
-    // ================= SLASH =================
+    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
-      if (interaction.commandName === "ping")
-        return interaction.reply("🏓 Pong!");
+      const user = interaction.options.getUser?.("usuario");
 
-      if (interaction.commandName === "nivel") {
+      switch (interaction.commandName) {
+
+        case "ping":
+          return interaction.reply("🏓 Pong!");
+
+        case "nivel": {
+          const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
+          return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);
+        }
+
+        case "warn":
+          if (!user) return interaction.reply("Usuario no encontrado.");
+          if (!warns[user.id]) warns[user.id] = 0;
+          warns[user.id]++;
+          saveWarns();
+          return interaction.reply(`⚠ ${user.tag} ahora tiene ${warns[user.id]} warns`);
+
+        case "warns":
+          if (!user) return interaction.reply("Usuario no encontrado.");
+          return interaction.reply(`📋 ${user.tag} tiene ${warns[user.id] || 0} advertencias`);
+
+        case "help":
+          return interaction.reply({
+            content: `
+📌 Comandos:
+/ping
+/nivel
+/warn
+/warns
+/crearbot
+/help
+/invite
+            `,
+            ephemeral: true
+          });
+
+        case "invite":
+          return interaction.reply({
+            content: `🔗 Invita el bot:
+https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`,
+            ephemeral: true
+          });
+
+        case "crearbot":
+
+          const embed = new EmbedBuilder()
+            .setColor("Purple")
+            .setTitle("🤖 Crear tu bot")
+            .setDescription("Usa los botones 👇");
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId("paso1").setLabel("Crear bot").setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId("paso2").setLabel("Token").setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId("archivos").setLabel("📄 Archivos base").setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId("zip").setLabel("📦 Descargar bot").setStyle(ButtonStyle.Success)
+          );
+
+          return interaction.reply({ embeds: [embed], components: [row] });
+      }
+    }
+
+    // ===== BOTONES =====
+    if (interaction.isButton()) {
+
+      if (interaction.customId === "paso1") {
+        return interaction.reply({
+          content: "👉 https://discord.com/developers/applications → New Application → Bot",
+          ephemeral: true
+        });
+      }
+
+      if (interaction.customId === "paso2") {
+        return interaction.reply({
+          content: "🔑 Bot → Reset Token → copia tu TOKEN",
+          ephemeral: true
+        });
+      }
+
+      if (interaction.customId === "archivos") {
+        return interaction.reply({
+          content: `
+📦 ARCHIVOS BASE
+
+📄 index.js
+\`\`\`js
+const { Client, GatewayIntentBits } = require('discord.js');
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+client.once('clientReady', () => console.log("Bot listo"));
+client.login("TU_TOKEN");
+\`\`\`
+
+📄 package.json
+\`\`\`json
+{
+  "name": "mi-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "discord.js": "^14.0.0"
+  }
+}
+\`\`\`
+          `,
+          ephemeral: true
+        });
+      }
+
+      if (interaction.customId === "zip") {
+
+        const output = fs.createWriteStream('./bot.zip');
+        const archive = archiver('zip');
+
+        archive.pipe(output);
+
+        archive.append(`const { Client, GatewayIntentBits } = require('discord.js');
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+client.once('clientReady', () => console.log("Bot listo"));
+client.login("TU_TOKEN");`, { name: 'index.js' });
+
+        archive.append(`{
+  "name": "mi-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "discord.js": "^14.0.0"
+  }
+}`, { name: 'package.json' });
+
+        await archive.finalize();
+
+        setTimeout(async () => {
+          const file = new AttachmentBuilder('./bot.zip');
+          await interaction.reply({
+            content: "📦 Aquí tienes tu bot:",
+            files: [file],
+            ephemeral: true
+          });
+        }, 1000);
+      }
+    }
+
+  } catch (error) {
+    console.error(error);
+
+    if (interaction.isRepliable() && !interaction.replied) {
+      await interaction.reply({
+        content: "⚠ Error en el bot",
+        ephemeral: true
+      });
+    }
+  }
+});
+
+// ================= LOGIN =================
+client.login(process.env.TOKEN);      if (interaction.commandName === "nivel") {
         const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
         return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);
       }
