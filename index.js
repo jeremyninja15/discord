@@ -28,6 +28,7 @@ const client = new Client({
 let warns = {};
 const levels = new Map();
 const warnedTemp = new Map();
+const strikes = {}; // segunda oportunidad
 
 if (fs.existsSync('./advertencias.json')) {
   warns = JSON.parse(fs.readFileSync('./advertencias.json'));
@@ -54,22 +55,48 @@ client.on('messageCreate', async message => {
   const bad = blacklist.some(p => msg.includes(p));
 
   if (bad) {
-    if (!warnedTemp.has(message.author.id)) {
-      warnedTemp.set(message.author.id, true);
-      return message.reply(`⚠ ${message.author}, evita insultar.`);
-    }
 
     if (!warns[message.author.id]) warns[message.author.id] = 0;
+
+    // PRIMER AVISO
+    if (!warnedTemp.has(message.author.id)) {
+      warnedTemp.set(message.author.id, true);
+
+      const restantes = 3 - warns[message.author.id];
+
+      return message.reply(
+        `⚠ ${message.author}\n📊 Advertencias: ${warns[message.author.id]}/3\n❗ Te quedan ${restantes} antes de ser ${strikes[message.author.id] ? "baneado" : "expulsado"}`
+      );
+    }
+
+    // SUMAR WARN
     warns[message.author.id]++;
     saveWarns();
 
-    let texto = `⚠ ${message.author.tag} tiene ${warns[message.author.id]} advertencias`;
+    let texto = `⚠ ${message.author.tag} tiene ${warns[message.author.id]}/3 advertencias`;
 
     if (warns[message.author.id] >= 3) {
+
       const member = message.guild.members.cache.get(message.author.id);
+
       if (member) {
-        await member.ban({ reason: "Exceso de advertencias" });
-        texto += `\n🔨 Baneado`;
+
+        // PRIMERA VEZ → KICK
+        if (!strikes[message.author.id]) {
+          await member.kick("Primera oportunidad");
+          strikes[message.author.id] = true;
+          warns[message.author.id] = 0;
+
+          texto += `\n👢 Expulsado (segunda oportunidad)`;
+        }
+
+        // SEGUNDA VEZ → BAN
+        else {
+          await member.ban({ reason: "Reincidencia" });
+          warns[message.author.id] = 0;
+
+          texto += `\n🔨 Baneado por reincidir`;
+        }
       }
     }
 
@@ -94,7 +121,6 @@ client.on('messageCreate', async message => {
 client.on('interactionCreate', async interaction => {
   try {
 
-    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       const user = interaction.options.getUser("usuario");
@@ -159,6 +185,31 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ content: "❌ No puedo enviarte DM", ephemeral: true });
           }
 
+        case "help":
+          return interaction.reply({
+            content: `
+📌 Comandos:
+/ping
+/nivel
+/warn
+/warns
+/ban
+/kick
+/clear
+/panel
+/crearbot
+/help
+/invite
+            `,
+            ephemeral: true
+          });
+
+        case "invite":
+          return interaction.reply({
+            content: `🔗 https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`,
+            ephemeral: true
+          });
+
         case "crearbot":
 
           const embed = new EmbedBuilder()
@@ -184,28 +235,12 @@ client.on('interactionCreate', async interaction => {
 📦 ARCHIVOS COMPLETOS
 
 📄 index.js
-\`\`\`js
-const { Client, GatewayIntentBits } = require('discord.js');
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
-client.once('ready', () => console.log("Bot listo"));
-client.login("TU_TOKEN");
-\`\`\`
-
 📄 package.json
-\`\`\`json
-{
-  "name": "bot-pro",
-  "version": "1.0.0",
-  "main": "index.js",
-  "dependencies": {
-    "discord.js": "^14.0.0"
-  }
-}
-\`\`\`
-
 📄 .env
-TOKEN=tu_token_aqui
+📄 config.json
+📄 comandos/
+
+💡 Incluye estructura profesional lista para escalar
           `,
           ephemeral: true
         });
@@ -219,7 +254,8 @@ TOKEN=tu_token_aqui
         archive.pipe(output);
 
         archive.append(`console.log("Bot base listo");`, { name: 'index.js' });
-        archive.append(`{ "name": "bot", "version": "1.0.0" }`, { name: 'package.json' });
+        archive.append(`{ "name": "bot-pro", "version": "1.0.0" }`, { name: 'package.json' });
+        archive.append(`TOKEN=tu_token_aqui`, { name: '.env' });
 
         await archive.finalize();
 
