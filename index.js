@@ -99,6 +99,7 @@ client.on('interactionCreate', async interaction => {
 
   try {
 
+    // ================= SLASH =================
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === "ping")
@@ -106,7 +107,7 @@ client.on('interactionCreate', async interaction => {
 
       if (interaction.commandName === "nivel") {
         const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
-        return interaction.reply(`Nivel ${data.level} | XP ${data.xp}`);
+        return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);
       }
 
       if (interaction.commandName === "warn") {
@@ -120,12 +121,14 @@ client.on('interactionCreate', async interaction => {
       if (interaction.commandName === "crearbot") {
 
         const embed = new EmbedBuilder()
+          .setColor("Purple")
           .setTitle("🤖 Crear tu bot")
-          .setDescription("Botones abajo 👇");
+          .setDescription("Selecciona una opción:");
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId("paso1").setLabel("Crear bot").setStyle(ButtonStyle.Primary),
           new ButtonBuilder().setCustomId("paso2").setLabel("Token").setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId("archivos").setLabel("📄 Archivos base").setStyle(ButtonStyle.Secondary),
           new ButtonBuilder().setCustomId("zip").setLabel("📦 Descargar bot").setStyle(ButtonStyle.Success)
         );
 
@@ -133,15 +136,76 @@ client.on('interactionCreate', async interaction => {
       }
     }
 
-    // ===== BOTONES =====
+    // ================= BOTONES =================
     if (interaction.isButton()) {
 
-      if (interaction.customId === "paso1")
-        return interaction.reply({ content: "Ve a Discord Developer Portal y crea una app.", ephemeral: true });
+      // Paso 1
+      if (interaction.customId === "paso1") {
+        return interaction.reply({
+          content: "📦 Ve a https://discord.com/developers/applications → crea app → Bot",
+          ephemeral: true
+        });
+      }
 
-      if (interaction.customId === "paso2")
-        return interaction.reply({ content: "Copia tu TOKEN en la sección BOT.", ephemeral: true });
+      // Paso 2
+      if (interaction.customId === "paso2") {
+        return interaction.reply({
+          content: "🔑 Entra a Bot → Reset Token → copia tu TOKEN",
+          ephemeral: true
+        });
+      }
 
+      // Archivos texto
+      if (interaction.customId === "archivos") {
+        return interaction.reply({
+          content: `
+📦 **Archivos base**
+
+📄 index.js
+\`\`\`js
+const { Client, GatewayIntentBits } = require('discord.js');
+
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
+});
+
+client.once('clientReady', () => {
+  console.log('Bot encendido 🔥');
+});
+
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === 'ping') {
+    await interaction.reply('🏓 Pong!');
+  }
+});
+
+client.login("TU_TOKEN");
+\`\`\`
+
+📄 package.json
+\`\`\`json
+{
+  "name": "mi-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.0.0"
+  }
+}
+\`\`\`
+
+🚀 Solo cambia TU_TOKEN
+          `,
+          ephemeral: true
+        });
+      }
+
+      // ZIP
       if (interaction.customId === "zip") {
 
         const output = fs.createWriteStream('./bot.zip');
@@ -149,30 +213,30 @@ client.on('interactionCreate', async interaction => {
 
         archive.pipe(output);
 
-        archive.append(`
-const { Client, GatewayIntentBits } = require('discord.js');
+        archive.append(`const { Client, GatewayIntentBits } = require('discord.js');
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once('clientReady', () => console.log("Bot listo"));
-client.login("TU_TOKEN");
-        `, { name: 'index.js' });
+client.login("TU_TOKEN");`, { name: 'index.js' });
 
-        archive.append(`
-{
+        archive.append(`{
   "name": "mi-bot",
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
     "discord.js": "^14.0.0"
   }
-}
-        `, { name: 'package.json' });
+}`, { name: 'package.json' });
 
         await archive.finalize();
 
         setTimeout(async () => {
           const file = new AttachmentBuilder('./bot.zip');
-          await interaction.reply({ content: "📦 Aquí tienes tu bot:", files: [file], ephemeral: true });
+          await interaction.reply({
+            content: "📦 Aquí tienes tu bot listo:",
+            files: [file],
+            ephemeral: true
+          });
         }, 1000);
       }
     }
