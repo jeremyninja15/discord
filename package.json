@@ -1,11 +1,9 @@
 {
   "name": "mi-bot",
   "version": "1.0.0",
-  "description": "Bot Discord PRO",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "deploy": "node deploy-commands.js"
+    "start": "node deploy-commands.js && node index.js"
   },
   "dependencies": {
     "discord.js": "^14.0.0",
