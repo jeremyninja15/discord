@@ -131,6 +131,17 @@ client.on('interactionCreate', async interaction => {
         case "ping":
           return interaction.reply("🏓 Pong!");
 
+          case "codigo":
+  return interaction.reply({
+    embeds: [
+      new EmbedBuilder()
+        .setColor("Purple")
+        .setTitle("💻 Código del bot")
+        .setDescription("[Haz click aquí](https://github.com/jeremyninja15/discord)")
+    ],
+    ephemeral: true
+  });
+
         case "nivel": {
           const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
           return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);
