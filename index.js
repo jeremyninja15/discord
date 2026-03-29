@@ -39,8 +39,8 @@ function saveWarns() {
 }
 
 // ================= FILTRO =================
-const blacklist = ['tonto', 'idiota', 'maldicion'];
-
+const insultos = require('./insultos.json');
+const blacklist = insultos.palabras;
 // ================= READY =================
 client.once('clientReady', () => {
   console.log(`🔥 ${client.user.tag} activo`);
@@ -50,7 +50,9 @@ client.once('clientReady', () => {
 client.on('messageCreate', async message => {
   if (!message.guild || message.author.bot) return;
 
-  const msg = message.content.toLowerCase();
+  const msg = message.content
+  .toLowerCase()
+  .replace(/[^a-z0-9]/gi, '');
 
   const bad = blacklist.some(p => msg.includes(p));
 
