@@ -37,6 +37,10 @@ const commands = [
     name: 'crearbot',
     description: '🤖 Aprende a crear tu propio bot paso a paso'
   },
+  {
+  name: 'codigo',
+  description: '💻 Ver el código del bot en GitHub'
+  },
 
   // 🔹 MODERACION
   {
