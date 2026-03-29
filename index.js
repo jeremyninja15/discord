@@ -1,0 +1,186 @@
+const {
+  Client,
+  GatewayIntentBits,
+  PermissionsBitField,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  AttachmentBuilder
+} = require('discord.js');
+
+const fs = require('fs');
+const archiver = require('archiver');
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.DirectMessages
+  ],
+  partials: ['CHANNEL']
+});
+
+// ================= DATOS =================
+let warns = {};
+const levels = new Map();
+const warnedTemp = new Map();
+
+if (fs.existsSync('./advertencias.json')) {
+  warns = JSON.parse(fs.readFileSync('./advertencias.json'));
+}
+
+function saveWarns() {
+  fs.writeFileSync('./advertencias.json', JSON.stringify(warns, null, 2));
+}
+
+// ================= PALABRAS =================
+const blacklist = ['tonto', 'idiota', 'maldicion'];
+
+// ================= READY =================
+client.once('clientReady', () => {
+  console.log(`🔥 ${client.user.tag} activo`);
+});
+
+// ================= MENSAJES =================
+client.on('messageCreate', async message => {
+  if (!message.guild || message.author.bot) return;
+
+  const msg = message.content.toLowerCase();
+
+  // ===== FILTRO =====
+  const bad = blacklist.some(p => msg.includes(p));
+
+  if (bad) {
+
+    if (!warnedTemp.has(message.author.id)) {
+      warnedTemp.set(message.author.id, true);
+      await message.reply(`⚠ ${message.author}, evita insultar.`);
+      return;
+    }
+
+    if (!warns[message.author.id]) warns[message.author.id] = 0;
+    warns[message.author.id]++;
+
+    saveWarns();
+
+    let texto = `⚠ ${message.author.tag} tiene ${warns[message.author.id]} advertencias`;
+
+    if (warns[message.author.id] >= 3) {
+      const member = message.guild.members.cache.get(message.author.id);
+      if (member) {
+        await member.ban();
+        texto += `\n🔨 Baneado por exceso de advertencias`;
+      }
+    }
+
+    await message.reply(texto);
+    warnedTemp.delete(message.author.id);
+    return;
+  }
+
+  // ===== NIVELES =====
+  const data = levels.get(message.author.id) || { xp: 0, level: 1 };
+
+  data.xp += 10;
+
+  if (data.xp >= data.level * 100) {
+    data.level++;
+    message.channel.send(`🎉 ${message.author} subió a nivel ${data.level}`);
+  }
+
+  levels.set(message.author.id, data);
+});
+
+// ================= INTERACCIONES =================
+client.on('interactionCreate', async interaction => {
+
+  try {
+
+    if (interaction.isChatInputCommand()) {
+
+      if (interaction.commandName === "ping")
+        return interaction.reply("🏓 Pong!");
+
+      if (interaction.commandName === "nivel") {
+        const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
+        return interaction.reply(`Nivel ${data.level} | XP ${data.xp}`);
+      }
+
+      if (interaction.commandName === "warn") {
+        const user = interaction.options.getUser("usuario");
+        if (!warns[user.id]) warns[user.id] = 0;
+        warns[user.id]++;
+        saveWarns();
+        return interaction.reply(`⚠ ${user.tag} ahora tiene ${warns[user.id]} warns`);
+      }
+
+      if (interaction.commandName === "crearbot") {
+
+        const embed = new EmbedBuilder()
+          .setTitle("🤖 Crear tu bot")
+          .setDescription("Botones abajo 👇");
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId("paso1").setLabel("Crear bot").setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId("paso2").setLabel("Token").setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId("zip").setLabel("📦 Descargar bot").setStyle(ButtonStyle.Success)
+        );
+
+        return interaction.reply({ embeds: [embed], components: [row] });
+      }
+    }
+
+    // ===== BOTONES =====
+    if (interaction.isButton()) {
+
+      if (interaction.customId === "paso1")
+        return interaction.reply({ content: "Ve a Discord Developer Portal y crea una app.", ephemeral: true });
+
+      if (interaction.customId === "paso2")
+        return interaction.reply({ content: "Copia tu TOKEN en la sección BOT.", ephemeral: true });
+
+      if (interaction.customId === "zip") {
+
+        const output = fs.createWriteStream('./bot.zip');
+        const archive = archiver('zip');
+
+        archive.pipe(output);
+
+        archive.append(`
+const { Client, GatewayIntentBits } = require('discord.js');
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+client.once('clientReady', () => console.log("Bot listo"));
+client.login("TU_TOKEN");
+        `, { name: 'index.js' });
+
+        archive.append(`
+{
+  "name": "mi-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "discord.js": "^14.0.0"
+  }
+}
+        `, { name: 'package.json' });
+
+        await archive.finalize();
+
+        setTimeout(async () => {
+          const file = new AttachmentBuilder('./bot.zip');
+          await interaction.reply({ content: "📦 Aquí tienes tu bot:", files: [file], ephemeral: true });
+        }, 1000);
+      }
+    }
+
+  } catch (err) {
+    console.error(err);
+  }
+
+});
+
+client.login(process.env.TOKEN);
