@@ -185,7 +185,27 @@ client.on('messageCreate', async message => {
             await member.roles.add(role);
             return interaction.reply(`👑 ${usuario.tag} ahora es ADMIN`);
           }
+case "quitar":
 
+  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
+    return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
+  }
+
+  const userQ = interaction.options.getUser("usuario");
+  const memberQ = interaction.guild.members.cache.get(userQ.id);
+
+  if (!memberQ) return interaction.reply("❌ Usuario no encontrado");
+
+  const rolesQ = memberQ.roles.cache.filter(r => r.id !== interaction.guild.id);
+
+  try {
+    await memberQ.roles.remove(rolesQ);
+
+    return interaction.reply(`❌ Roles quitados a ${userQ.tag}`);
+  } catch (err) {
+    console.error(err);
+    return interaction.reply("⚠ Error: revisa permisos del bot");
+  }
         case "crearbot":
           const { embed, row } = getCrearBotEmbed();
           return interaction.reply({ embeds: [embed], components: [row] });
@@ -224,7 +244,17 @@ client.on('messageCreate', async message => {
           ephemeral: true
         });
       }
+if (interaction.customId === "quitar_roles") {
 
+  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
+    return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
+  }
+
+  return interaction.reply({
+    content: "⚠ Usa /quitar usuario: @persona",
+    ephemeral: true
+  });
+}
       if (interaction.customId === "dar_admin") {
         if (interaction.user.id !== interaction.guild.ownerId) {
           return interaction.reply({ content: "🚫 Solo el dueño del servidor", ephemeral: true });
