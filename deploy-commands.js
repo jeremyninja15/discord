@@ -19,6 +19,12 @@ const commands = [
   },
 
   {
+  name: 'panelroles',
+  description: '🎛 Panel de administración de roles'
+  },
+  
+
+  {
     name: 'help',
     description: '📌 Lista de comandos disponibles'
   },
