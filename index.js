@@ -124,6 +124,7 @@ client.on('messageCreate', async message => {
 client.on('interactionCreate', async interaction => {
   try {
 
+    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       const user = interaction.options.getUser("usuario");
@@ -134,16 +135,16 @@ client.on('interactionCreate', async interaction => {
         case "ping":
           return interaction.reply("🏓 Pong!");
 
-          case "codigo":
-  return interaction.reply({
-    embeds: [
-      new EmbedBuilder()
-        .setColor("Purple")
-        .setTitle("💻 Código del bot")
-        .setDescription("[Haz click aquí](https://github.com/jeremyninja15/discord)")
-    ],
-    ephemeral: true
-  });
+        case "codigo":
+          return interaction.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("Purple")
+                .setTitle("💻 Código del bot")
+                .setDescription("[Haz click aquí](https://github.com/jeremyninja15/discord)")
+            ],
+            ephemeral: true
+          });
 
         case "nivel": {
           const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
@@ -226,13 +227,13 @@ client.on('interactionCreate', async interaction => {
           });
 
         case "crearbot":
-
-  const { embed, row } = getCrearBotEmbed();
-
-  return interaction.reply({
-    embeds: [embed],
-    components: [row]
-  });
+          const { embed, row } = getCrearBotEmbed();
+          return interaction.reply({
+            embeds: [embed],
+            components: [row]
+          });
+      }
+    }
 
     // ===== BOTONES =====
     if (interaction.isButton()) {
@@ -241,21 +242,18 @@ client.on('interactionCreate', async interaction => {
         return interaction.reply({
           content: `
 📦 ARCHIVOS COMPLETOS
-
 📄 index.js
 📄 package.json
 📄 .env
 📄 config.json
 📄 comandos/
-
-💡 Incluye estructura profesional lista para escalar
           `,
           ephemeral: true
         });
       }
 
       if (interaction.customId === "zip") {
-try{
+
         const output = fs.createWriteStream('./bot.zip');
         const archive = archiver('zip');
 
@@ -276,7 +274,9 @@ try{
           });
         }, 1000);
       }
-      } catch (error) {
+    }
+
+  } catch (error) {
     console.error(error);
 
     if (interaction.isRepliable() && !interaction.replied) {
@@ -287,8 +287,3 @@ try{
     }
   }
 });
-console.log("🚀 Iniciando bot...");
-// ================= LOGIN =================
-clientclient.login(process.env.TOKEN)
-  .then(() => console.log("✅ LOGIN OK"))
-  .catch(err => console.error("❌ ERROR LOGIN:", err));
