@@ -14,6 +14,29 @@ const commands = [
   },
 
   {
+  name: 'rol',
+  description: 'Asignar roles',
+  options: [
+    {
+      name: 'usuario',
+      description: 'Usuario',
+      type: 6,
+      required: true
+    },
+    {
+      name: 'tipo',
+      description: 'Tipo de rol',
+      type: 3,
+      required: true,
+      choices: [
+        { name: 'mod', value: 'mod' },
+        { name: 'admin', value: 'admin' }
+      ]
+    }
+  ]
+  },
+
+  {
     name: 'nivel',
     description: '📊 Muestra tu nivel actual'
   },
