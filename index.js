@@ -287,3 +287,8 @@ client.on('interactionCreate', async interaction => {
     }
   }
 });
+console.log("🚀 Iniciando bot...");
+
+client.login(process.env.TOKEN)
+  .then(() => console.log("✅ Bot conectado"))
+  .catch(err => console.error("❌ Error al iniciar:", err));
