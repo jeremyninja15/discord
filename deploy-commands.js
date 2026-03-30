@@ -136,7 +136,7 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 (async () => {
   try {
     console.log('🚀 Iniciando registro de comandos...');
-
+    console.log("🚀 Iniciando bot...");
     if (!TOKEN || !CLIENT_ID) {
       throw new Error("❌ Faltan variables de entorno (TOKEN o CLIENT_ID)");
     }
