@@ -120,7 +120,7 @@ client.on('messageCreate', async message => {
 });
 
 // ================= INTERACCIONES =================
-client.on('interactionCreate', async interaction => {
+    client.on('interactionCreate', async interaction => {
   try {
 
     // ===== COMANDOS =====
@@ -137,62 +137,59 @@ client.on('interactionCreate', async interaction => {
             ephemeral: true
           });
 
-          case "rol":
+        case "rol":
 
-  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
-    return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
-  }
+          if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
+          }
 
-  const usuario = interaction.options.getUser("usuario");
-  const tipo = interaction.options.getString("tipo");
+          const usuario = interaction.options.getUser("usuario");
+          const tipo = interaction.options.getString("tipo");
 
-  const member = interaction.guild.members.cache.get(usuario.id);
+          const member = interaction.guild.members.cache.get(usuario.id);
 
-  if (!member) return interaction.reply("❌ Usuario no encontrado");
+          if (!member) return interaction.reply("❌ Usuario no encontrado");
 
-  if (tipo === "mod") {
+          if (tipo === "mod") {
 
-    let role = interaction.guild.roles.cache.find(r => r.name === "Moderador");
+            let role = interaction.guild.roles.cache.find(r => r.name === "Moderador");
 
-    if (!role) {
-      role = await interaction.guild.roles.create({
-        name: "Moderador",
-        permissions: [PermissionsBitField.Flags.KickMembers]
-      });
-    }
+            if (!role) {
+              role = await interaction.guild.roles.create({
+                name: "Moderador",
+                permissions: [PermissionsBitField.Flags.KickMembers]
+              });
+            }
 
-    await member.roles.add(role);
+            await member.roles.add(role);
+            return interaction.reply(`👮 ${usuario.tag} ahora es MOD`);
+          }
 
-    return interaction.reply(`👮 ${usuario.tag} ahora es MOD`);
-  }
+          if (tipo === "admin") {
 
-  if (tipo === "admin") {
+            if (interaction.user.id !== interaction.guild.ownerId) {
+              return interaction.reply({ content: "🚫 Solo el dueño puede dar admin", ephemeral: true });
+            }
 
-    if (interaction.user.id !== interaction.guild.ownerId) {
-      return interaction.reply({ content: "🚫 Solo el dueño puede dar admin", ephemeral: true });
-    }
+            let role = interaction.guild.roles.cache.find(r =>
+              r.permissions.has(PermissionsBitField.Flags.Administrator)
+            );
 
-    let role = interaction.guild.roles.cache.find(r =>
-      r.permissions.has(PermissionsBitField.Flags.Administrator)
-    );
+            if (!role) {
+              role = await interaction.guild.roles.create({
+                name: "Administrador",
+                permissions: [PermissionsBitField.Flags.Administrator]
+              });
+            }
 
-    if (!role) {
-      role = await interaction.guild.roles.create({
-        name: "Administrador",
-        permissions: [PermissionsBitField.Flags.Administrator]
-      });
-    }
-
-    await member.roles.add(role);
-
-    return interaction.reply(`👑 ${usuario.tag} ahora es ADMIN`);
-  };
+            await member.roles.add(role);
+            return interaction.reply(`👑 ${usuario.tag} ahora es ADMIN`);
+          }
 
         case "crearbot":
           const { embed, row } = getCrearBotEmbed();
           return interaction.reply({ embeds: [embed], components: [row] });
 
-        // 🔥 PANEL DE ROLES
         case "panelroles":
 
           if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
@@ -215,67 +212,51 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ===== BOTONES =====
-if (interaction.isButton()) {
+    if (interaction.isButton()) {
 
-  // ===== DAR MOD =====
-  if (interaction.customId === "dar_mod") {
+      if (interaction.customId === "dar_mod") {
+        if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
+          return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
+        }
 
-    if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
-      return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
-    }
+        return interaction.reply({
+          content: "⚠ Usa /rol usuario: @persona tipo: mod",
+          ephemeral: true
+        });
+      }
 
-    return interaction.reply({
-      content: "⚠ Usa /rol usuario: @persona tipo: mod",
-      ephemeral: true
-    });
-  }
+      if (interaction.customId === "dar_admin") {
+        if (interaction.user.id !== interaction.guild.ownerId) {
+          return interaction.reply({ content: "🚫 Solo el dueño del servidor", ephemeral: true });
+        }
 
-  // ===== DAR ADMIN =====
-  if (interaction.customId === "dar_admin") {
+        return interaction.reply({
+          content: "⚠ Usa /rol usuario: @persona tipo: admin",
+          ephemeral: true
+        });
+      }
 
-    if (interaction.user.id !== interaction.guild.ownerId) {
-      return interaction.reply({ content: "🚫 Solo el dueño del servidor", ephemeral: true });
-    }
+      if (interaction.customId === "quitar_roles") {
+        const member = interaction.member;
+        const roles = member.roles.cache.filter(r => r.id !== interaction.guild.id);
 
-    return interaction.reply({
-      content: "⚠ Usa /rol usuario: @persona tipo: admin",
-      ephemeral: true
-    });
-  }
+        try {
+          await member.roles.remove(roles);
 
-  // ===== QUITAR ROLES (FIX REAL) =====
-  if (interaction.customId === "quitar_roles") {
+          return interaction.reply({
+            content: "❌ Roles eliminados correctamente",
+            ephemeral: true
+          });
 
-    const member = interaction.member;
+        } catch (error) {
+          console.error(error);
+          return interaction.reply({
+            content: "⚠ Error al quitar roles (permisos del bot)",
+            ephemeral: true
+          });
+        }
+      }
 
-    // ❗ SOLO QUITA ROLES QUE NO SEAN @everyone
-    const roles = member.roles.cache.filter(r => r.id !== interaction.guild.id);
-
-    try {
-      await member.roles.remove(roles);
-
-      return interaction.reply({
-        content: "❌ Roles eliminados correctamente",
-        ephemeral: true
-      });
-
-    } catch (error) {
-      console.error(error);
-      return interaction.reply({
-        content: "⚠ Error al quitar roles (permisos del bot)",
-        ephemeral: true
-      });
-    }
-  }
-
-  // ===== BOTON CODIGO =====
-  if (interaction.customId === "codigo_btn") {
-    return interaction.reply({
-      content: "💻 https://github.com/jeremyninja15/discord",
-      ephemeral: true
-    });
-  }
-}
       if (interaction.customId === "codigo_btn") {
         return interaction.reply({
           content: "💻 https://github.com/jeremyninja15/discord",
@@ -288,5 +269,4 @@ if (interaction.isButton()) {
     console.error(e);
   }
 });
-
 client.login(process.env.TOKEN);
