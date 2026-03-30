@@ -255,7 +255,7 @@ client.on('interactionCreate', async interaction => {
       }
 
       if (interaction.customId === "zip") {
-
+try{
         const output = fs.createWriteStream('./bot.zip');
         const archive = archiver('zip');
 
@@ -275,8 +275,7 @@ client.on('interactionCreate', async interaction => {
             ephemeral: true
           });
         }, 1000);
-      }
-    }
+}
 
   } catch (error) {
     console.error(error);
