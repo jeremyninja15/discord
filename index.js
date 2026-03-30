@@ -5,12 +5,10 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-  AttachmentBuilder
+  ButtonStyle
 } = require('discord.js');
 
 const fs = require('fs');
-const archiver = require('archiver');
 const { getCrearBotEmbed } = require('./crear');
 
 // ================= CLIENT =================
@@ -26,7 +24,6 @@ const client = new Client({
 // ================= DATOS =================
 let warns = {};
 const levels = new Map();
-const warnedTemp = new Map();
 const strikes = {};
 
 if (fs.existsSync('./advertencias.json')) {
@@ -59,6 +56,7 @@ client.on('messageCreate', async message => {
   const msg = message.content.toLowerCase().replace(/[^a-z0-9]/gi, '');
   const bad = blacklist.some(p => msg.includes(p));
 
+  // ===== FILTRO =====
   if (bad) {
     if (!warns[message.author.id]) warns[message.author.id] = 0;
 
@@ -92,18 +90,30 @@ client.on('messageCreate', async message => {
 
   if (data.xp >= data.level * 100) {
     data.level++;
+    message.channel.send(`🎉 ${message.author} subió a nivel ${data.level}`);
 
-    const roleName = `Nivel ${data.level}`;
-    let role = message.guild.roles.cache.find(r => r.name === roleName);
+    // 🔥 SISTEMA DE RANGOS AUTOMÁTICO
+    const rankRoles = [
+      { level: 5, name: "Novato" },
+      { level: 10, name: "Activo" },
+      { level: 20, name: "Pro" }
+    ];
 
-    if (!role) {
-      role = await message.guild.roles.create({ name: roleName });
+    for (const rank of rankRoles) {
+      if (data.level === rank.level) {
+
+        let role = message.guild.roles.cache.find(r => r.name === rank.name);
+
+        if (!role) {
+          role = await message.guild.roles.create({ name: rank.name });
+        }
+
+        const member = message.guild.members.cache.get(message.author.id);
+        if (member) await member.roles.add(role);
+
+        message.channel.send(`🏆 ${message.author} obtuvo el rango ${rank.name}`);
+      }
     }
-
-    const member = message.guild.members.cache.get(message.author.id);
-    await member.roles.add(role);
-
-    message.channel.send(`🎉 ${message.author} subió a ${roleName}`);
   }
 
   levels.set(message.author.id, data);
@@ -113,10 +123,8 @@ client.on('messageCreate', async message => {
 client.on('interactionCreate', async interaction => {
   try {
 
+    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
-
-      const user = interaction.options.getUser("usuario");
-      const razon = interaction.options.getString("razon");
 
       switch (interaction.commandName) {
 
@@ -133,6 +141,7 @@ client.on('interactionCreate', async interaction => {
           const { embed, row } = getCrearBotEmbed();
           return interaction.reply({ embeds: [embed], components: [row] });
 
+        // 🔥 PANEL DE ROLES
         case "panelroles":
 
           if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
@@ -141,12 +150,13 @@ client.on('interactionCreate', async interaction => {
 
           const embedRoles = new EmbedBuilder()
             .setColor("Blue")
-            .setTitle("🎛 Panel de Roles");
+            .setTitle("🎛 Panel de Roles")
+            .setDescription("Gestiona roles fácilmente");
 
           const rowRoles = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("dar_mod").setLabel("👮 Mod").setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId("dar_admin").setLabel("👑 Admin").setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId("quitar_roles").setLabel("❌ Quitar").setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId("dar_mod").setLabel("👮 Dar Mod").setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId("dar_admin").setLabel("👑 Dar Admin").setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId("quitar_roles").setLabel("❌ Quitar Roles").setStyle(ButtonStyle.Secondary)
           );
 
           return interaction.reply({ embeds: [embedRoles], components: [rowRoles] });
@@ -156,35 +166,18 @@ client.on('interactionCreate', async interaction => {
     // ===== BOTONES =====
     if (interaction.isButton()) {
 
-      const member = interaction.guild.members.cache.get(interaction.user.id);
-
+      // 🔒 SEGURIDAD: NO DA ROLES DIRECTOS
       if (interaction.customId === "dar_mod") {
-        const role = interaction.guild.roles.cache.find(r => r.name === "Moderador");
-        if (!role) return interaction.reply("❌ Crea rol 'Moderador'");
-
-        await member.roles.add(role);
-        logAction(interaction.guild, `👮 ${interaction.user.tag} obtuvo MOD`);
-        return interaction.reply({ content: "✅ Mod dado", ephemeral: true });
+        return interaction.reply({ content: "⚠ Usa /rol para asignar mod", ephemeral: true });
       }
 
       if (interaction.customId === "dar_admin") {
-
-        if (interaction.user.id !== interaction.guild.ownerId) {
-          return interaction.reply({ content: "🚫 Solo el dueño", ephemeral: true });
-        }
-
-        const role = interaction.guild.roles.cache.find(r =>
-          r.permissions.has(PermissionsBitField.Flags.Administrator)
-        );
-
-        await member.roles.add(role);
-        logAction(interaction.guild, `👑 ${interaction.user.tag} obtuvo ADMIN`);
-        return interaction.reply({ content: "👑 Admin dado", ephemeral: true });
+        return interaction.reply({ content: "⚠ Usa /rol para asignar admin", ephemeral: true });
       }
 
       if (interaction.customId === "quitar_roles") {
+        const member = interaction.member;
         await member.roles.set([]);
-        logAction(interaction.guild, `❌ ${interaction.user.tag} quitó roles`);
         return interaction.reply({ content: "❌ Roles eliminados", ephemeral: true });
       }
 
