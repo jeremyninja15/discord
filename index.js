@@ -251,7 +251,12 @@ client.on('interactionCreate', async interaction => {
           ephemeral: true
         });
       }
-
+if (interaction.customId === "codigo_btn") {
+  return interaction.reply({
+    content: "💻 Código del bot:\nhttps://github.com/jeremyninja15/discord",
+    ephemeral: true
+  });
+}
       if (interaction.customId === "zip") {
 
         const output = fs.createWriteStream('./bot.zip');
