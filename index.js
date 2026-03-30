@@ -255,7 +255,7 @@ client.on('interactionCreate', async interaction => {
       }
 
       if (interaction.customId === "zip") {
-
+try{
         const output = fs.createWriteStream('./bot.zip');
         const archive = archiver('zip');
 
@@ -276,9 +276,7 @@ client.on('interactionCreate', async interaction => {
           });
         }, 1000);
       }
-    }
-
-  } catch (error) {
+      } catch (error) {
     console.error(error);
 
     if (interaction.isRepliable() && !interaction.replied) {
