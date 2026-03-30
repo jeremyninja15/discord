@@ -54,7 +54,7 @@ CLIENT_ID=tu_id
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId("ver_codigo")
+      .setCustomId("codigo_btn")
       .setLabel("💻 Ver código")
       .setStyle(ButtonStyle.Primary),
 
