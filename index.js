@@ -11,6 +11,7 @@ const {
 
 const fs = require('fs');
 const archiver = require('archiver');
+const { getCrearBotEmbed } = require('./crear');
 
 // ================= CLIENT =================
 const client = new Client({
@@ -226,19 +227,12 @@ client.on('interactionCreate', async interaction => {
 
         case "crearbot":
 
-          const embed = new EmbedBuilder()
-            .setColor("Purple")
-            .setTitle("🤖 Crear tu bot PRO")
-            .setDescription("Guía completa con archivos y descarga");
+  const { embed, row } = getCrearBotEmbed();
 
-          const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("archivos").setLabel("📄 Ver archivos").setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId("zip").setLabel("📦 Descargar bot").setStyle(ButtonStyle.Success)
-          );
-
-          return interaction.reply({ embeds: [embed], components: [row] });
-      }
-    }
+  return interaction.reply({
+    embeds: [embed],
+    components: [row]
+  });
 
     // ===== BOTONES =====
     if (interaction.isButton()) {
