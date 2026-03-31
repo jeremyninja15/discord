@@ -5,10 +5,12 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  AttachmentBuilder
 } = require('discord.js');
 
 const fs = require('fs');
+const archiver = require('archiver');
 const { getCrearBotEmbed } = require('./crear');
 
 // ================= CLIENT =================
@@ -17,13 +19,16 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.MessageContent
-  ]
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.DirectMessages
+  ],
+  partials: ['CHANNEL']
 });
 
 // ================= DATOS =================
 let warns = {};
 const levels = new Map();
+const warnedTemp = new Map();
 const strikes = {};
 
 if (fs.existsSync('./advertencias.json')) {
@@ -32,12 +37,6 @@ if (fs.existsSync('./advertencias.json')) {
 
 function saveWarns() {
   fs.writeFileSync('./advertencias.json', JSON.stringify(warns, null, 2));
-}
-
-// ================= LOGS =================
-function logAction(guild, texto) {
-  const canal = guild.channels.cache.find(c => c.name === "logs");
-  if (canal) canal.send(`📜 ${texto}`);
 }
 
 // ================= FILTRO =================
@@ -56,31 +55,42 @@ client.on('messageCreate', async message => {
   const msg = message.content.toLowerCase().replace(/[^a-z0-9]/gi, '');
   const bad = blacklist.some(p => msg.includes(p));
 
-  // ===== FILTRO =====
   if (bad) {
     if (!warns[message.author.id]) warns[message.author.id] = 0;
+
+    if (!warnedTemp.has(message.author.id)) {
+      warnedTemp.set(message.author.id, true);
+
+      const restantes = 3 - warns[message.author.id];
+
+      return message.reply(
+        `⚠ ${message.author}\n📊 Advertencias: ${warns[message.author.id]}/3\n❗ Te quedan ${restantes} antes de ser ${strikes[message.author.id] ? "baneado" : "expulsado"}`
+      );
+    }
 
     warns[message.author.id]++;
     saveWarns();
 
-    let texto = `⚠ ${message.author.tag} (${warns[message.author.id]}/3)`;
+    let texto = `⚠ ${message.author.tag} tiene ${warns[message.author.id]}/3 advertencias`;
 
     if (warns[message.author.id] >= 3) {
       const member = message.guild.members.cache.get(message.author.id);
 
-      if (!strikes[message.author.id]) {
-        await member.kick();
-        strikes[message.author.id] = true;
-        warns[message.author.id] = 0;
-        texto += "\n👢 Expulsado";
-      } else {
-        await member.ban();
-        warns[message.author.id] = 0;
-        texto += "\n🔨 Baneado";
+      if (member) {
+        if (!strikes[message.author.id]) {
+          await member.kick();
+          strikes[message.author.id] = true;
+          warns[message.author.id] = 0;
+          texto += `\n👢 Expulsado (segunda oportunidad)`;
+        } else {
+          await member.ban();
+          warns[message.author.id] = 0;
+          texto += `\n🔨 Baneado por reincidir`;
+        }
       }
     }
 
-    logAction(message.guild, texto);
+    warnedTemp.delete(message.author.id);
     return message.reply(texto);
   }
 
@@ -91,39 +101,15 @@ client.on('messageCreate', async message => {
   if (data.xp >= data.level * 100) {
     data.level++;
     message.channel.send(`🎉 ${message.author} subió a nivel ${data.level}`);
-
-    // 🔥 SISTEMA DE RANGOS AUTOMÁTICO
-    const rankRoles = [
-      { level: 5, name: "Novato" },
-      { level: 10, name: "Activo" },
-      { level: 20, name: "Pro" }
-    ];
-
-    for (const rank of rankRoles) {
-      if (data.level === rank.level) {
-
-        let role = message.guild.roles.cache.find(r => r.name === rank.name);
-
-        if (!role) {
-          role = await message.guild.roles.create({ name: rank.name });
-        }
-
-        const member = message.guild.members.cache.get(message.author.id);
-        if (member) await member.roles.add(role);
-
-        message.channel.send(`🏆 ${message.author} obtuvo el rango ${rank.name}`);
-      }
-    }
   }
 
   levels.set(message.author.id, data);
 });
 
 // ================= INTERACCIONES =================
-    client.on('interactionCreate', async interaction => {
+client.on('interactionCreate', async interaction => {
   try {
 
-    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       switch (interaction.commandName) {
@@ -133,159 +119,133 @@ client.on('messageCreate', async message => {
 
         case "codigo":
           return interaction.reply({
-            content: "💻 https://github.com/jeremyninja15/discord",
+            embeds: [
+              new EmbedBuilder()
+                .setColor("Purple")
+                .setTitle("💻 Código del bot")
+                .setDescription("[Haz click aquí](https://github.com/jeremyninja15/discord)")
+            ],
             ephemeral: true
           });
 
-        case "rol":
+        case "nivel": {
+          const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
+          return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);
+        }
 
-          if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
-            return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
-          }
+        case "warn": {
+          const user = interaction.options.getUser("usuario");
+          if (!user) return interaction.reply("❌ Usuario inválido");
 
-          const usuario = interaction.options.getUser("usuario");
-          const tipo = interaction.options.getString("tipo");
+          if (!warns[user.id]) warns[user.id] = 0;
+          warns[user.id]++;
+          saveWarns();
 
-          const member = interaction.guild.members.cache.get(usuario.id);
+          return interaction.reply(`⚠ ${user.tag} tiene ${warns[user.id]} advertencias`);
+        }
 
-          if (!member) return interaction.reply("❌ Usuario no encontrado");
+        case "warns": {
+          const user = interaction.options.getUser("usuario");
+          if (!user) return interaction.reply("❌ Usuario inválido");
 
-          if (tipo === "mod") {
+          return interaction.reply(`📋 ${user.tag} tiene ${warns[user.id] || 0} advertencias`);
+        }
 
-            let role = interaction.guild.roles.cache.find(r => r.name === "Moderador");
+        case "ban": {
+          if (!interaction.memberPermissions.has(PermissionsBitField.Flags.BanMembers))
+            return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });
 
-            if (!role) {
-              role = await interaction.guild.roles.create({
-                name: "Moderador",
-                permissions: [PermissionsBitField.Flags.KickMembers]
-              });
-            }
+          const user = interaction.options.getUser("usuario");
+          const member = interaction.guild.members.cache.get(user.id);
 
-            await member.roles.add(role);
-            return interaction.reply(`👮 ${usuario.tag} ahora es MOD`);
-          }
+          if (!member || !member.bannable)
+            return interaction.reply("❌ No puedo banearlo");
 
-          if (tipo === "admin") {
+          await member.ban();
+          return interaction.reply(`🔨 ${user.tag} baneado`);
+        }
 
-            if (interaction.user.id !== interaction.guild.ownerId) {
-              return interaction.reply({ content: "🚫 Solo el dueño puede dar admin", ephemeral: true });
-            }
+        case "kick": {
+          if (!interaction.memberPermissions.has(PermissionsBitField.Flags.KickMembers))
+            return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });
 
-            let role = interaction.guild.roles.cache.find(r =>
-              r.permissions.has(PermissionsBitField.Flags.Administrator)
-            );
+          const user = interaction.options.getUser("usuario");
+          const member = interaction.guild.members.cache.get(user.id);
 
-            if (!role) {
-              role = await interaction.guild.roles.create({
-                name: "Administrador",
-                permissions: [PermissionsBitField.Flags.Administrator]
-              });
-            }
+          if (!member || !member.kickable)
+            return interaction.reply("❌ No puedo expulsarlo");
 
-            await member.roles.add(role);
-            return interaction.reply(`👑 ${usuario.tag} ahora es ADMIN`);
-          }
-case "quitar":
+          await member.kick();
+          return interaction.reply(`👢 ${user.tag} expulsado`);
+        }
 
-  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
-    return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
-  }
+        case "clear": {
+          if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ManageMessages))
+            return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });
 
-  const userQ = interaction.options.getUser("usuario");
-  const memberQ = interaction.guild.members.cache.get(userQ.id);
+          const cantidad = interaction.options.getInteger("cantidad");
 
-  if (!memberQ) return interaction.reply("❌ Usuario no encontrado");
+          if (cantidad < 1 || cantidad > 100)
+            return interaction.reply("❌ Debe ser entre 1 y 100");
 
-  const rolesQ = memberQ.roles.cache.filter(r => r.id !== interaction.guild.id);
+          await interaction.deferReply({ ephemeral: true });
+          await interaction.channel.bulkDelete(cantidad, true);
 
-  try {
-    await memberQ.roles.remove(rolesQ);
+          return interaction.editReply(`🧹 ${cantidad} mensajes eliminados`);
+        }
 
-    return interaction.reply(`❌ Roles quitados a ${userQ.tag}`);
-  } catch (err) {
-    console.error(err);
-    return interaction.reply("⚠ Error: revisa permisos del bot");
-  }
-        case "crearbot":
+        case "imagen": {
+          const prompt = interaction.options.getString("prompt");
+
+          await interaction.deferReply();
+
+          const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+
+          const embed = new EmbedBuilder()
+            .setColor("Purple")
+            .setTitle("🖼 Imagen generada")
+            .setDescription(`Prompt: **${prompt}**`)
+            .setImage(url);
+
+          return interaction.editReply({ embeds: [embed] });
+        }
+
+        case "help":
+          return interaction.reply({
+            content: `
+📌 Comandos:
+/ping
+/nivel
+/warn
+/warns
+/ban
+/kick
+/clear
+/imagen
+/panel
+/crearbot
+/help
+/invite
+`,
+            ephemeral: true
+          });
+
+        case "invite":
+          return interaction.reply({
+            content: `🔗 https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`,
+            ephemeral: true
+          });
+
+        case "crearbot": {
           const { embed, row } = getCrearBotEmbed();
           return interaction.reply({ embeds: [embed], components: [row] });
+        }
 
-        case "panelroles":
-
-          if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
-            return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
-          }
-
-          const embedRoles = new EmbedBuilder()
-            .setColor("Blue")
-            .setTitle("🎛 Panel de Roles")
-            .setDescription("Gestiona roles fácilmente");
-
-          const rowRoles = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("dar_mod").setLabel("👮 Dar Mod").setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId("dar_admin").setLabel("👑 Dar Admin").setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId("quitar_roles").setLabel("❌ Quitar Roles").setStyle(ButtonStyle.Secondary)
-          );
-
-          return interaction.reply({ embeds: [embedRoles], components: [rowRoles] });
       }
     }
 
     // ===== BOTONES =====
     if (interaction.isButton()) {
-
-      if (interaction.customId === "dar_mod") {
-        if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
-          return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
-        }
-
-        return interaction.reply({
-          content: "⚠ Usa /rol usuario: @persona tipo: mod",
-          ephemeral: true
-        });
-      }
-if (interaction.customId === "quitar_roles") {
-
-  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
-    return interaction.reply({ content: "❌ Solo admins", ephemeral: true });
-  }
-
-  return interaction.reply({
-    content: "⚠ Usa /quitar usuario: @persona",
-    ephemeral: true
-  });
-}
-      if (interaction.customId === "dar_admin") {
-        if (interaction.user.id !== interaction.guild.ownerId) {
-          return interaction.reply({ content: "🚫 Solo el dueño del servidor", ephemeral: true });
-        }
-
-        return interaction.reply({
-          content: "⚠ Usa /rol usuario: @persona tipo: admin",
-          ephemeral: true
-        });
-      }
-
-      if (interaction.customId === "quitar_roles") {
-        const member = interaction.member;
-        const roles = member.roles.cache.filter(r => r.id !== interaction.guild.id);
-
-        try {
-          await member.roles.remove(roles);
-
-          return interaction.reply({
-            content: "❌ Roles eliminados correctamente",
-            ephemeral: true
-          });
-
-        } catch (error) {
-          console.error(error);
-          return interaction.reply({
-            content: "⚠ Error al quitar roles (permisos del bot)",
-            ephemeral: true
-          });
-        }
-      }
 
       if (interaction.customId === "codigo_btn") {
         return interaction.reply({
@@ -293,10 +253,44 @@ if (interaction.customId === "quitar_roles") {
           ephemeral: true
         });
       }
+
+      if (interaction.customId === "zip") {
+
+        const output = fs.createWriteStream('./bot.zip');
+        const archive = archiver('zip');
+
+        archive.pipe(output);
+
+        archive.append(`console.log("Bot base listo");`, { name: 'index.js' });
+
+        archive.finalize();
+
+        output.on('close', async () => {
+          const file = new AttachmentBuilder('./bot.zip');
+          await interaction.reply({
+            content: "📦 Aquí tienes tu bot",
+            files: [file],
+            ephemeral: true
+          });
+        });
+      }
     }
 
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
+
+    if (interaction.isRepliable() && !interaction.replied) {
+      await interaction.reply({
+        content: "⚠ Error en el bot",
+        ephemeral: true
+      });
+    }
   }
 });
-client.login(process.env.TOKEN);
+
+// ================= LOGIN =================
+console.log("🚀 Iniciando bot...");
+
+client.login(process.env.TOKEN)
+  .then(() => console.log("✅ Bot conectado"))
+  .catch(err => console.error("❌ Error:", err));
