@@ -42,8 +42,8 @@ const commands = [
   },
 
   {
-  name: 'panelroles',
-  description: '🎛 Panel de administración de roles'
+  name: 'quitar,
+  description: '🎛 Quitar roles a personales'
   },
   
 
