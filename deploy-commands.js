@@ -42,7 +42,7 @@ const commands = [
   },
 
   {
-  name: 'quitar,
+  name: 'quitar',
   description: '🎛 Quitar roles a personales'
   },
   
