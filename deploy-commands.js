@@ -14,6 +14,19 @@ const commands = [
   },
 
   {
+  name: "imagen",
+  description: "Genera una imagen con IA",
+  options: [
+    {
+      name: "prompt",
+      description: "Describe la imagen",
+      type: 3, // STRING
+      required: true
+    }
+  ]
+  },
+
+  {
   name: 'rol',
   description: 'Asignar roles',
   options: [
