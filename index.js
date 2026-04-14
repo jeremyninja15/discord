@@ -39,6 +39,29 @@ function saveWarns() {
   fs.writeFileSync('./advertencias.json', JSON.stringify(warns, null, 2));
 }
 
+// ================= FUNCION PRO =================
+function getRazonNoAccion(member, bot, accion) {
+  let razones = [];
+
+  if (member.id === member.guild.ownerId) {
+    razones.push("👑 Es el creador del servidor");
+  }
+
+  if (member.roles.highest.position >= bot.roles.highest.position) {
+    razones.push("🔝 Tiene un rol más alto o igual que el bot");
+  }
+
+  if (accion === "kick" && !bot.permissions.has(PermissionsBitField.Flags.KickMembers)) {
+    razones.push("🚫 El bot no tiene permisos para expulsar");
+  }
+
+  if (accion === "ban" && !bot.permissions.has(PermissionsBitField.Flags.BanMembers)) {
+    razones.push("🚫 El bot no tiene permisos para banear");
+  }
+
+  return razones;
+}
+
 // ================= FILTRO =================
 const insultos = require('./insultos.json');
 const blacklist = insultos.palabras;
@@ -75,17 +98,43 @@ client.on('messageCreate', async message => {
 
     if (warns[message.author.id] >= 3) {
       const member = message.guild.members.cache.get(message.author.id);
+      const bot = message.guild.members.me;
 
       if (member) {
-        if (!strikes[message.author.id]) {
-          await member.kick();
-          strikes[message.author.id] = true;
-          warns[message.author.id] = 0;
-          texto += `\n👢 Expulsado (segunda oportunidad)`;
-        } else {
-          await member.ban();
-          warns[message.author.id] = 0;
-          texto += `\n🔨 Baneado por reincidir`;
+        const razones = getRazonNoAccion(member, bot, "kick");
+
+        if (razones.length > 0) {
+          return message.reply(`❌ No puedo expulsar a ${message.author.tag} porque:\n${razones.join("\n")}`);
+        }
+
+        try {
+          // 🔥 quitar roles peligrosos
+          const rolesPeligrosos = member.roles.cache.filter(r =>
+            r.permissions.has(PermissionsBitField.Flags.Administrator) ||
+            r.permissions.has(PermissionsBitField.Flags.KickMembers) ||
+            r.permissions.has(PermissionsBitField.Flags.BanMembers)
+          );
+
+          for (const role of rolesPeligrosos.values()) {
+            if (role.position < bot.roles.highest.position) {
+              await member.roles.remove(role);
+            }
+          }
+
+          if (!strikes[message.author.id]) {
+            await member.kick();
+            strikes[message.author.id] = true;
+            warns[message.author.id] = 0;
+            texto += `\n👢 Expulsado (segunda oportunidad)`;
+          } else {
+            await member.ban();
+            warns[message.author.id] = 0;
+            texto += `\n🔨 Baneado por reincidir`;
+          }
+
+        } catch (err) {
+          console.error(err);
+          return message.reply(`❌ Error al castigar a ${message.author.tag}`);
         }
       }
     }
@@ -117,38 +166,9 @@ client.on('interactionCreate', async interaction => {
         case "ping":
           return interaction.reply("🏓 Pong!");
 
-        case "codigo":
-          return interaction.reply({
-            embeds: [
-              new EmbedBuilder()
-                .setColor("Purple")
-                .setTitle("💻 Código del bot")
-                .setDescription("[Haz click aquí](https://github.com/jeremyninja15/discord)")
-            ],
-            ephemeral: true
-          });
-
         case "nivel": {
           const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
           return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);
-        }
-
-        case "warn": {
-          const user = interaction.options.getUser("usuario");
-          if (!user) return interaction.reply("❌ Usuario inválido");
-
-          if (!warns[user.id]) warns[user.id] = 0;
-          warns[user.id]++;
-          saveWarns();
-
-          return interaction.reply(`⚠ ${user.tag} tiene ${warns[user.id]} advertencias`);
-        }
-
-        case "warns": {
-          const user = interaction.options.getUser("usuario");
-          if (!user) return interaction.reply("❌ Usuario inválido");
-
-          return interaction.reply(`📋 ${user.tag} tiene ${warns[user.id] || 0} advertencias`);
         }
 
         case "ban": {
@@ -157,12 +177,35 @@ client.on('interactionCreate', async interaction => {
 
           const user = interaction.options.getUser("usuario");
           const member = interaction.guild.members.cache.get(user.id);
+          const bot = interaction.guild.members.me;
 
-          if (!member || !member.bannable)
-            return interaction.reply("❌ No puedo banearlo");
+          if (!member)
+            return interaction.reply("❌ Usuario no encontrado");
 
-          await member.ban();
-          return interaction.reply(`🔨 ${user.tag} baneado`);
+          const razones = getRazonNoAccion(member, bot, "ban");
+
+          if (razones.length > 0) {
+            return interaction.reply(`❌ No puedo banear a **${user.tag}** porque:\n${razones.join("\n")}`);
+          }
+
+          try {
+            const rolesPeligrosos = member.roles.cache.filter(r =>
+              r.permissions.has(PermissionsBitField.Flags.Administrator) ||
+              r.permissions.has(PermissionsBitField.Flags.KickMembers) ||
+              r.permissions.has(PermissionsBitField.Flags.BanMembers)
+            );
+
+            for (const role of rolesPeligrosos.values()) {
+              if (role.position < bot.roles.highest.position) {
+                await member.roles.remove(role);
+              }
+            }
+
+            await member.ban();
+            return interaction.reply(`🔨 ${user.tag} baneado\n🧹 Roles peligrosos eliminados`);
+          } catch (err) {
+            return interaction.reply(`❌ Error al banear a **${user.tag}**`);
+          }
         }
 
         case "kick": {
@@ -171,126 +214,44 @@ client.on('interactionCreate', async interaction => {
 
           const user = interaction.options.getUser("usuario");
           const member = interaction.guild.members.cache.get(user.id);
+          const bot = interaction.guild.members.me;
 
-          if (!member || !member.kickable)
-            return interaction.reply("❌ No puedo expulsarlo");
+          if (!member)
+            return interaction.reply("❌ Usuario no encontrado");
 
-          await member.kick();
-          return interaction.reply(`👢 ${user.tag} expulsado`);
+          const razones = getRazonNoAccion(member, bot, "kick");
+
+          if (razones.length > 0) {
+            return interaction.reply(`❌ No puedo expulsar a **${user.tag}** porque:\n${razones.join("\n")}`);
+          }
+
+          try {
+            const rolesPeligrosos = member.roles.cache.filter(r =>
+              r.permissions.has(PermissionsBitField.Flags.Administrator) ||
+              r.permissions.has(PermissionsBitField.Flags.KickMembers) ||
+              r.permissions.has(PermissionsBitField.Flags.BanMembers)
+            );
+
+            for (const role of rolesPeligrosos.values()) {
+              if (role.position < bot.roles.highest.position) {
+                await member.roles.remove(role);
+              }
+            }
+
+            await member.kick();
+            return interaction.reply(`👢 ${user.tag} expulsado\n🧹 Roles peligrosos eliminados`);
+          } catch (err) {
+            return interaction.reply(`❌ Error al expulsar a **${user.tag}**`);
+          }
         }
 
-        case "clear": {
-          if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ManageMessages))
-            return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });
-
-          const cantidad = interaction.options.getInteger("cantidad");
-
-          if (cantidad < 1 || cantidad > 100)
-            return interaction.reply("❌ Debe ser entre 1 y 100");
-
-          await interaction.deferReply({ ephemeral: true });
-          await interaction.channel.bulkDelete(cantidad, true);
-
-          return interaction.editReply(`🧹 ${cantidad} mensajes eliminados`);
-        }
-
-        case "imagen": {
-          const prompt = interaction.options.getString("prompt");
-
-          await interaction.deferReply();
-
-          const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
-
-          const embed = new EmbedBuilder()
-            .setColor("Purple")
-            .setTitle("🖼 Imagen generada")
-            .setDescription(`Prompt: **${prompt}**`)
-            .setImage(url);
-
-          return interaction.editReply({ embeds: [embed] });
-        }
-
-        case "help":
-          return interaction.reply({
-            content: `
-📌 Comandos:
-/ping
-/nivel
-/warn
-/warns
-/ban
-/kick
-/clear
-/imagen
-/panel
-/crearbot
-/help
-/invite
-`,
-            ephemeral: true
-          });
-
-        case "invite":
-          return interaction.reply({
-            content: `🔗 https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`,
-            ephemeral: true
-          });
-
-        case "crearbot": {
-          const { embed, row } = getCrearBotEmbed();
-          return interaction.reply({ embeds: [embed], components: [row] });
-        }
-
-      }
-    }
-
-    // ===== BOTONES =====
-    if (interaction.isButton()) {
-
-      if (interaction.customId === "codigo_btn") {
-        return interaction.reply({
-          content: "💻 https://github.com/jeremyninja15/discord",
-          ephemeral: true
-        });
-      }
-
-      if (interaction.customId === "zip") {
-
-        const output = fs.createWriteStream('./bot.zip');
-        const archive = archiver('zip');
-
-        archive.pipe(output);
-
-        archive.append(`console.log("Bot base listo");`, { name: 'index.js' });
-
-        archive.finalize();
-
-        output.on('close', async () => {
-          const file = new AttachmentBuilder('./bot.zip');
-          await interaction.reply({
-            content: "📦 Aquí tienes tu bot",
-            files: [file],
-            ephemeral: true
-          });
-        });
       }
     }
 
   } catch (error) {
     console.error(error);
-
-    if (interaction.isRepliable() && !interaction.replied) {
-      await interaction.reply({
-        content: "⚠ Error en el bot",
-        ephemeral: true
-      });
-    }
   }
 });
 
 // ================= LOGIN =================
-console.log("🚀 Iniciando bot...");
-
-client.login(process.env.TOKEN)
-  .then(() => console.log("✅ Bot conectado"))
-  .catch(err => console.error("❌ Error:", err));
+client.login(process.env.TOKEN);
