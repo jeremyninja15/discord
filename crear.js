@@ -152,6 +152,12 @@ client.on('interactionCreate', async interaction => {
         ephemeral: true
       });
 
+      case "invite":
+  return interaction.reply({
+    content: `🔗 https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`,
+    ephemeral: true
+  });
+
     case "nivel": {
       const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
       return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);
