@@ -53,13 +53,18 @@ const commands = [
     name: 'nivel',
     description: '📊 Muestra tu nivel actual'
   },
-
-  {
+{
   name: 'quitar',
-  description: '🎛 Quitar roles a usuarios'
-  },
-  
-
+  description: '🎛 Ver roles del usuario',
+  options: [
+    {
+      name: 'usuario',
+      description: 'Usuario',
+      type: 6,
+      required: true
+    }
+  ]
+}
   {
     name: 'help',
     description: '📌 Lista de comandos disponibles'
