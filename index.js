@@ -173,7 +173,7 @@ case "quitar": {
   }
 
   const user = interaction.options.getUser("usuario");
-  const role = interaction.options.getRole("rol");
+  const role = interaction.options.getRole("roleo");
   const member = interaction.guild.members.cache.get(user.id);
   const bot = interaction.guild.members.me;
 
