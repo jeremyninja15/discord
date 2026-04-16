@@ -209,7 +209,7 @@ client.on('interactionCreate', async interaction => {
 
     case "quitar": {
   const user = interaction.options.getUser("usuario");
-  const rolNombre = interaction.options.getString("rol");
+  const rolNombre = interaction.options.getString("roleo");
   const member = interaction.guild.members.cache.get(user.id);
   const bot = interaction.guild.members.me;
 
