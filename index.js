@@ -165,6 +165,43 @@ client.on('interactionCreate', async interaction => {
 
         case "ping":
           return interaction.reply("🏓 Pong!");
+          
+
+case "quitar": {
+  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ManageRoles)) {
+    return interaction.reply({ content: "❌ No tienes permisos", ephemeral: true });
+  }
+
+  const user = interaction.options.getUser("usuario");
+  const role = interaction.options.getRole("rol");
+  const member = interaction.guild.members.cache.get(user.id);
+  const bot = interaction.guild.members.me;
+
+  if (!member) {
+    return interaction.reply("❌ Usuario no encontrado");
+  }
+
+  // 🔥 validaciones PRO
+  if (member.id === interaction.guild.ownerId) {
+    return interaction.reply("❌ No puedes quitar roles al creador");
+  }
+
+  if (role.position >= bot.roles.highest.position) {
+    return interaction.reply("❌ Ese rol es más alto que el bot");
+  }
+
+  if (!member.roles.cache.has(role.id)) {
+    return interaction.reply(`❌ ${user.tag} no tiene ese rol`);
+  }
+
+  try {
+    await member.roles.remove(role);
+    return interaction.reply(`🧹 Rol **${role.name}** quitado a ${user.tag}`);
+  } catch (err) {
+    return interaction.reply("❌ Error al quitar el rol");
+  }
+}
+          
 
         case "nivel": {
           const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
