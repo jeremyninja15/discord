@@ -64,7 +64,7 @@ const commands = [
       required: true
     }
   ]
-}
+},
   {
     name: 'help',
     description: '📌 Lista de comandos disponibles'
