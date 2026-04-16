@@ -174,14 +174,14 @@ case "quitar": {
 
   const user = interaction.options.getUser("usuario");
   const role = interaction.options.getRole("roleo");
-  const member = interaction.guild.members.cache.get(user.id);
-  const bot = interaction.guild.members.me;
 
-  if (!member) {
-    return interaction.reply("❌ Usuario no encontrado");
+  if (!user || !role) {
+    return interaction.reply({ content: "❌ Debes seleccionar usuario y rol", ephemeral: true });
   }
 
-  // 🔥 validaciones PRO
+  const member = await interaction.guild.members.fetch(user.id);
+  const bot = interaction.guild.members.me;
+
   if (member.id === interaction.guild.ownerId) {
     return interaction.reply("❌ No puedes quitar roles al creador");
   }
@@ -198,6 +198,7 @@ case "quitar": {
     await member.roles.remove(role);
     return interaction.reply(`🧹 Rol **${role.name}** quitado a ${user.tag}`);
   } catch (err) {
+    console.error(err);
     return interaction.reply("❌ Error al quitar el rol");
   }
 }
