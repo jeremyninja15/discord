@@ -56,7 +56,7 @@ const commands = [
 
   {
   name: 'quitar',
-  description: '🎛 Quitar roles a usuarios
+  description: '🎛 Quitar roles a usuarios'
   },
   
 
