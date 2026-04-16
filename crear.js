@@ -208,18 +208,49 @@ client.on('interactionCreate', async interaction => {
     }
 
     case "quitar": {
-      const user = interaction.options.getUser("usuario");
-      const member = interaction.guild.members.cache.get(user.id);
+  const user = interaction.options.getUser("usuario");
+  const rolNombre = interaction.options.getString("rol");
+  const member = interaction.guild.members.cache.get(user.id);
+  const bot = interaction.guild.members.me;
 
-      const roles = member.roles.cache.filter(r => r.name !== "@everyone");
+  if (!member)
+    return interaction.reply("❌ Usuario no encontrado");
 
-      for (const role of roles.values()) {
-        if (role.position < bot.roles.highest.position) {
-          await member.roles.remove(role);
-        }
-      }
+  // 🔍 Obtener roles del usuario (sin @everyone)
+  const rolesUsuario = member.roles.cache.filter(r => r.name !== "@everyone");
 
-      return interaction.reply(`🧹 Roles eliminados a ${user.tag}`);
+  // ❗ Si no puso rol → mostrar lista
+  if (!rolNombre) {
+    if (rolesUsuario.size === 0) {
+      return interaction.reply(`❌ ${user.tag} no tiene roles para quitar`);
+    }
+
+    const lista = rolesUsuario.map(r => `• ${r.name}`).join("\n");
+
+    return interaction.reply({
+      content: `📋 Roles de **${user.tag}**:\n${lista}\n\n✏ Usa: /quitar usuario:${user.username} rol:nombre`,
+      ephemeral: true
+    });
+  }
+
+  // 🔎 Buscar rol por nombre
+  const rol = rolesUsuario.find(r => r.name.toLowerCase().includes(rolNombre.toLowerCase()));
+
+  if (!rol)
+    return interaction.reply(`❌ ${user.tag} no tiene ese rol`);
+
+  // ⚠️ Verificar jerarquía
+  if (rol.position >= bot.roles.highest.position) {
+    return interaction.reply(`❌ No puedo quitar el rol **${rol.name}** porque es más alto que el bot`);
+  }
+
+  try {
+    await member.roles.remove(rol);
+    return interaction.reply(`🧹 Rol **${rol.name}** eliminado a ${user.tag}`);
+  } catch (err) {
+    console.error(err);
+    return interaction.reply(`❌ Error al quitar el rol`);
+  }
     }
 
     case "kick": {
