@@ -64,7 +64,7 @@ const commands = [
       required: true
     }, 
     {
-      name: 'rol',
+      name: 'roleo',
       descripcion: 'rol a quitar',
       type: 8, 
       required: true 
