@@ -1,16 +1,12 @@
 const {
   Client,
   GatewayIntentBits,
-  PermissionsBitField,
-  EmbedBuilder
+  PermissionsBitField
 } = require('discord.js');
 
 const fs = require('fs');
 const insultos = require('./insultos.json');
 const blacklist = insultos.palabras;
-
-const msg = message.content.toLowerCase().replace(/[^a-z0-9]/gi, '');
-const bad = blacklist.some(p => msg.includes(p));
 
 // ================= CLIENT =================
 const client = new Client({
@@ -53,7 +49,14 @@ client.on('messageCreate', async message => {
     warns[message.author.id]++;
     saveWarns();
 
-    let texto = `⚠ ${message.author.tag} tiene ${warns[message.author.id]}/3 advertencias`;
+    let texto = `⚠ ${message.author} tiene ${warns[message.author.id]}/3 advertencias`;
+
+    // 🔥 BORRAR MENSAJE
+    try {
+      await message.delete();
+    } catch (err) {
+      console.log("No pude borrar el mensaje");
+    }
 
     if (warns[message.author.id] >= 3) {
       const member = await message.guild.members.fetch(message.author.id);
@@ -61,17 +64,17 @@ client.on('messageCreate', async message => {
       try {
         await member.kick();
         warns[message.author.id] = 0;
-        texto += `\n👢 Expulsado por exceso de insultos`;
+        texto += `\n👢 Expulsado por insultar demasiado`;
       } catch (err) {
         console.error(err);
-        texto += `\n❌ No pude expulsarlo`;
+        texto += `\n❌ No pude expulsarlo (revisa permisos)`;
       }
     }
 
-    return message.reply(texto);
+    return message.channel.send(texto);
   }
 
-  // 🎮 SISTEMA DE NIVELES
+  // 🎮 NIVELES
   const data = levels.get(message.author.id) || { xp: 0, level: 1 };
   data.xp += 10;
 
@@ -90,8 +93,6 @@ client.on('interactionCreate', async interaction => {
   try {
     switch (interaction.commandName) {
 
-      // ================= BASICOS =================
-
       case "ping":
         return interaction.reply("🏓 Pong!");
 
@@ -101,11 +102,14 @@ client.on('interactionCreate', async interaction => {
       }
 
       case "help":
-        return interaction.reply("📌 Comandos: ping, nivel, ban, kick, warn, warns, clear, rol, quitar, invite");
+        return interaction.reply(
+          "📌 Comandos:\n" +
+          "ping, nivel, ban, kick, warn, warns, clear, rol, quitar, invite"
+        );
 
       case "invite": {
-        const link = `https://discord.com/oauth2/authorize?client_id=1476975549376237639&permissions=8&integration_type=0&scope=bot`;
-        return interaction.reply(`🔗 Invíta al bot a tu servidor:\n${link}`);
+        const link = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`;
+        return interaction.reply(`🔗 Invita el bot:\n${link}`);
       }
 
       // ================= ROLES =================
@@ -125,6 +129,9 @@ client.on('interactionCreate', async interaction => {
 
         if (!role) return interaction.reply("❌ Rol no encontrado");
 
+        if (role.position >= interaction.guild.members.me.roles.highest.position)
+          return interaction.reply("❌ El rol es más alto que el bot");
+
         await member.roles.add(role);
 
         return interaction.reply(`✅ Rol ${role.name} dado a ${user.tag}`);
@@ -136,6 +143,7 @@ client.on('interactionCreate', async interaction => {
 
         const user = interaction.options.getUser("usuario");
         const role = interaction.options.getRole("roleo");
+
         const member = await interaction.guild.members.fetch(user.id);
         const bot = interaction.guild.members.me;
 
@@ -146,6 +154,7 @@ client.on('interactionCreate', async interaction => {
           return interaction.reply(`❌ ${user.tag} no tiene ese rol`);
 
         await member.roles.remove(role);
+
         return interaction.reply(`🧹 Rol ${role.name} quitado a ${user.tag}`);
       }
 
@@ -159,6 +168,7 @@ client.on('interactionCreate', async interaction => {
         const member = await interaction.guild.members.fetch(user.id);
 
         await member.ban();
+
         return interaction.reply(`🔨 ${user.tag} baneado`);
       }
 
@@ -170,6 +180,7 @@ client.on('interactionCreate', async interaction => {
         const member = await interaction.guild.members.fetch(user.id);
 
         await member.kick();
+
         return interaction.reply(`👢 ${user.tag} expulsado`);
       }
 
@@ -180,7 +191,11 @@ client.on('interactionCreate', async interaction => {
         const cantidad = interaction.options.getInteger("cantidad");
 
         await interaction.channel.bulkDelete(cantidad, true);
-        return interaction.reply({ content: `🧹 ${cantidad} mensajes eliminados`, ephemeral: true });
+
+        return interaction.reply({
+          content: `🧹 ${cantidad} mensajes eliminados`,
+          ephemeral: true
+        });
       }
 
       // ================= WARN =================
