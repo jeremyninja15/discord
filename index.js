@@ -55,7 +55,7 @@ client.on('messageCreate', async message => {
       warnedTemp.set(message.author.id, true);
 
       const aviso = await message.channel.send(
-        `⚠ ${message.author} evita insultos.\n❗ La próxima será advertencia\n🗑 Este mensaje se borrará en 15 segundos`
+        `⚠ ${message.author} evita insultos.\n❗ La próxima no será advertencia, sera un strike\n🗑 Este mensaje se borrará en 15 segundos`
       );
 
       setTimeout(() => {
