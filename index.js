@@ -6,6 +6,11 @@ const {
 } = require('discord.js');
 
 const fs = require('fs');
+const insultos = require('./insultos.json');
+const blacklist = insultos.palabras;
+
+const msg = message.content.toLowerCase().replace(/[^a-z0-9]/gi, '');
+const bad = blacklist.some(p => msg.includes(p));
 
 // ================= CLIENT =================
 const client = new Client({
@@ -38,6 +43,35 @@ client.once('ready', () => {
 client.on('messageCreate', async message => {
   if (!message.guild || message.author.bot) return;
 
+  const msg = message.content.toLowerCase().replace(/[^a-z0-9]/gi, '');
+  const bad = blacklist.some(p => msg.includes(p));
+
+  // 🚫 FILTRO DE INSULTOS
+  if (bad) {
+    if (!warns[message.author.id]) warns[message.author.id] = 0;
+
+    warns[message.author.id]++;
+    saveWarns();
+
+    let texto = `⚠ ${message.author.tag} tiene ${warns[message.author.id]}/3 advertencias`;
+
+    if (warns[message.author.id] >= 3) {
+      const member = await message.guild.members.fetch(message.author.id);
+
+      try {
+        await member.kick();
+        warns[message.author.id] = 0;
+        texto += `\n👢 Expulsado por exceso de insultos`;
+      } catch (err) {
+        console.error(err);
+        texto += `\n❌ No pude expulsarlo`;
+      }
+    }
+
+    return message.reply(texto);
+  }
+
+  // 🎮 SISTEMA DE NIVELES
   const data = levels.get(message.author.id) || { xp: 0, level: 1 };
   data.xp += 10;
 
