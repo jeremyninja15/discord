@@ -21,6 +21,7 @@ const client = new Client({
 // ================= DATOS =================
 let warns = {};
 const levels = new Map();
+const warnedTemp = new Map(); // 🔥 sistema aviso previo
 
 if (fs.existsSync('./advertencias.json')) {
   warns = JSON.parse(fs.readFileSync('./advertencias.json'));
@@ -42,8 +43,31 @@ client.on('messageCreate', async message => {
   const msg = message.content.toLowerCase().replace(/[^a-z0-9]/gi, '');
   const bad = blacklist.some(p => msg.includes(p));
 
-  // 🚫 FILTRO DE INSULTOS
   if (bad) {
+
+    // 🧹 borrar mensaje ofensivo
+    try {
+      await message.delete();
+    } catch {}
+
+    // ⚠️ PRIMERA VEZ → SOLO AVISO
+    if (!warnedTemp.has(message.author.id)) {
+      warnedTemp.set(message.author.id, true);
+
+      const aviso = await message.channel.send(
+        `⚠ ${message.author} evita insultos.\n❗ La próxima será advertencia\n🗑 Este mensaje se borrará en 15 segundos`
+      );
+
+      setTimeout(() => {
+        aviso.delete().catch(() => {});
+      }, 15000);
+
+      return;
+    }
+
+    // 🚨 SEGUNDA VEZ → WARN
+    warnedTemp.delete(message.author.id);
+
     if (!warns[message.author.id]) warns[message.author.id] = 0;
 
     warns[message.author.id]++;
@@ -51,22 +75,15 @@ client.on('messageCreate', async message => {
 
     let texto = `⚠ ${message.author} tiene ${warns[message.author.id]}/3 advertencias`;
 
-    // 🔥 BORRAR MENSAJE
-    try {
-      await message.delete();
-    } catch (err) {
-      console.log("No pude borrar el mensaje");
-    }
-
+    // 👢 castigo final
     if (warns[message.author.id] >= 3) {
       const member = await message.guild.members.fetch(message.author.id);
 
       try {
         await member.kick();
         warns[message.author.id] = 0;
-        texto += `\n👢 Expulsado por insultar demasiado`;
-      } catch (err) {
-        console.error(err);
+        texto += `\n👢 Expulsado por reincidir`;
+      } catch {
         texto += `\n❌ No pude expulsarlo (revisa permisos)`;
       }
     }
@@ -168,7 +185,6 @@ client.on('interactionCreate', async interaction => {
         const member = await interaction.guild.members.fetch(user.id);
 
         await member.ban();
-
         return interaction.reply(`🔨 ${user.tag} baneado`);
       }
 
@@ -180,7 +196,6 @@ client.on('interactionCreate', async interaction => {
         const member = await interaction.guild.members.fetch(user.id);
 
         await member.kick();
-
         return interaction.reply(`👢 ${user.tag} expulsado`);
       }
 
