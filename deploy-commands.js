@@ -27,6 +27,11 @@ const commands = [
   },
 
   {
+  name: 'hentai',
+  description: '🔞 Imagen NSFW'
+},
+
+  {
   name: 'rol',
   description: 'Asignar roles',
   options: [
