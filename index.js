@@ -3,7 +3,7 @@ const {
   GatewayIntentBits,
   PermissionsBitField
 } = require('discord.js');
-
+const axios = require('axios');
 const fs = require('fs');
 const insultos = require('./insultos.json');
 const blacklist = insultos.palabras;
@@ -212,6 +212,36 @@ client.on('interactionCreate', async interaction => {
           ephemeral: true
         });
       }
+
+        case "hentai": {
+
+  // verificar canal NSFW
+  if (!interaction.channel.nsfw) {
+    return interaction.reply({
+      content: "❌ Solo funciona en canales NSFW",
+      ephemeral: true
+    });
+  }
+
+  try {
+
+    const res = await axios.get(
+      "https://nekos.life/api/v2/img/hentai"
+    );
+
+    return interaction.reply({
+      content: res.data.url
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    return interaction.reply({
+      content: "❌ Error obteniendo imagen",
+      ephemeral: true
+    });
+  }
+        }
 
       // ================= WARN =================
 
