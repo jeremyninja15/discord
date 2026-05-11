@@ -11,7 +11,7 @@ const fs = require("fs");
 // ================= GELBOORU FIXED =================
 async function gelbooru(tag) {
   try {
-    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}&limit=20&api_key=${process.env.GEL_API_KEY}&user_id=${process.env.GEL_USER_ID}`;
+    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}&limit=50&api_key=${process.env.GEL_API_KEY}&user_id=${process.env.GEL_USER_ID}`;
 
     const res = await axios.get(url, {
       headers: { "User-Agent": "Mozilla/5.0" }
@@ -21,9 +21,14 @@ async function gelbooru(tag) {
 
     if (!posts || posts.length === 0) return null;
 
-    const post = posts[Math.floor(Math.random() * posts.length)];
+    // filtra SOLO posts con imagen válida
+    const valid = posts.filter(p => p.file_url || p.sample_url);
 
-    return post?.file_url || null;
+    if (valid.length === 0) return null;
+
+    const post = valid[Math.floor(Math.random() * valid.length)];
+
+    return post.file_url || post.sample_url || null;
 
   } catch (err) {
     console.log("Gelbooru error:", err.response?.status || err.message);
