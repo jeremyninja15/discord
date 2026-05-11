@@ -10,6 +10,6 @@
     "archiver": "^5.3.1",
     "axios": "^1.9.0", 
     "nekos-best.js": "latest",
-    "xml2js": "lastest"
+    "xml2js": "latest"
   }
 }
