@@ -252,8 +252,7 @@ client.on('interactionCreate', async interaction => {
   } catch (err) {
     console.log(err);
     return interaction.reply("❌ Error API");
-  }
-        },
+  },
 
 
         case "nsfw": {
@@ -280,7 +279,7 @@ client.on('interactionCreate', async interaction => {
     console.log(err);
     return interaction.reply("❌ Error en Gelbooru");
   }
-        }
+        },
 
       // ================= WARN =================
 
