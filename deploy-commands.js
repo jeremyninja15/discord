@@ -1,193 +1,191 @@
 const { REST, Routes } = require('discord.js');
 
-// ================= CONFIG =================
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
-// ================= COMANDOS =================
 const commands = [
 
-  // 🔹 BASICOS
+  // ================= BASICOS =================
   {
     name: 'ping',
     description: '🏓 Verifica si el bot está activo'
   },
 
   {
-  name: "imagen",
-  description: "Genera una imagen con IA",
-  options: [
-    {
-      name: "prompt",
-      description: "Describe la imagen",
-      type: 3, // STRING
-      required: true
-    }
-  ]
+    name: "imagen",
+    description: "Genera una imagen con IA",
+    options: [
+      {
+        name: "prompt",
+        description: "Describe la imagen",
+        type: 3,
+        required: true
+      }
+    ]
   },
 
+  // ================= HENTAI (CON TAGS) =================
   {
-  name: 'hentai',
-  description: '🔞 Imagen NSFW'
-},
-
-  {
-  name: 'rol',
-  description: 'Asignar roles',
-  options: [
-    {
-      name: 'usuario',
-      description: 'Usuario',
-      type: 6,
-      required: true
-    },
-    {
-      name: 'tipo',
-      description: 'Tipo de rol',
-      type: 3,
-      required: true,
-      choices: [
-        { name: 'mod', value: 'mod' },
-        { name: 'admin', value: 'admin' }
-      ]
-    }
-  ]
+    name: "hentai",
+    description: "NSFW con tags",
+    options: [
+      {
+        name: "tag",
+        description: "Tipo de hentai",
+        type: 3,
+        required: false,
+        choices: [
+          { name: "Hentai", value: "hentai" },
+          { name: "Boobs", value: "boobs" },
+          { name: "Ass", value: "ass" },
+          { name: "Anal", value: "anal" }
+        ]
+      }
+    ]
   },
 
+  // ================= ROLES =================
   {
-    name: 'nivel',
-    description: '📊 Muestra tu nivel actual'
-  },
-{
-  name: 'quitar',
-  description: '🎛 Ver roles del usuario',
-  options: [
-    {
-      name: 'usuario',
-      description: 'Usuario',
-      type: 6,
-      required: true
-    }, 
-    {
-      name: 'roleo',
-      description: 'rol a quitar',
-      type: 8, 
-      required: true 
-    }
-  ]
-},
-  {
-    name: 'help',
-    description: '📌 Lista de comandos disponibles'
-  },
-
-  {
-    name: 'invite',
-    description: '🔗 Obtén el link para invitar el bot'
-  },
-
-  {
-    name: 'panel',
-    description: '📲 Abre el panel privado en DM'
-  },
-
-  // 🔹 MODERACION
-  {
-    name: 'ban',
-    description: '🔨 Banea un usuario del servidor',
+    name: 'rol',
+    description: 'Asignar roles',
     options: [
       {
         name: 'usuario',
-        description: 'Usuario a banear',
         type: 6,
+        description: 'Usuario',
         required: true
       },
       {
-        name: 'razon',
-        description: 'Razón del ban',
+        name: 'tipo',
         type: 3,
-        required: false
+        description: 'Tipo de rol',
+        required: true,
+        choices: [
+          { name: 'mod', value: 'mod' },
+          { name: 'admin', value: 'admin' }
+        ]
+      }
+    ]
+  },
+
+  {
+    name: 'quitar',
+    description: 'Quitar roles',
+    options: [
+      {
+        name: 'usuario',
+        type: 6,
+        required: true,
+        description: 'Usuario'
+      },
+      {
+        name: 'roleo',
+        type: 8,
+        required: true,
+        description: 'Rol a quitar'
+      }
+    ]
+  },
+
+  // ================= MODERACION =================
+  {
+    name: 'ban',
+    description: '🔨 Banea usuario',
+    options: [
+      {
+        name: 'usuario',
+        type: 6,
+        required: true,
+        description: 'Usuario'
+      },
+      {
+        name: 'razon',
+        type: 3,
+        required: false,
+        description: 'Razón'
       }
     ]
   },
 
   {
     name: 'kick',
-    description: '👢 Expulsa un usuario',
+    description: '👢 Expulsa usuario',
     options: [
       {
         name: 'usuario',
-        description: 'Usuario a expulsar',
         type: 6,
-        required: true
-      },
-      {
-        name: 'razon',
-        description: 'Razón del kick',
-        type: 3,
-        required: false
+        required: true,
+        description: 'Usuario'
       }
     ]
   },
 
   {
     name: 'clear',
-    description: '🧹 Elimina mensajes (1 a 100)',
+    description: '🧹 Borra mensajes',
     options: [
       {
         name: 'cantidad',
-        description: 'Cantidad de mensajes a eliminar',
         type: 4,
         required: true,
         min_value: 1,
-        max_value: 100
+        max_value: 100,
+        description: 'Cantidad'
       }
     ]
   },
 
+  // ================= INFO =================
+  {
+    name: 'nivel',
+    description: '📊 Ver tu nivel'
+  },
+
+  {
+    name: 'help',
+    description: '📌 Comandos'
+  },
+
+  {
+    name: 'invite',
+    description: '🔗 Invite link'
+  },
+
   {
     name: 'warn',
-    description: '⚠️ Advierte a un usuario',
+    description: '⚠️ Advertir usuario',
     options: [
       {
         name: 'usuario',
-        description: 'Usuario a advertir',
         type: 6,
-        required: true
-      },
-      {
-        name: 'razon',
-        description: 'Razón de la advertencia',
-        type: 3,
-        required: false
+        required: true,
+        description: 'Usuario'
       }
     ]
   },
 
   {
     name: 'warns',
-    description: '📋 Ver advertencias de un usuario',
+    description: '📋 Ver warns',
     options: [
       {
         name: 'usuario',
-        description: 'Usuario',
         type: 6,
-        required: true
+        required: true,
+        description: 'Usuario'
       }
     ]
   }
-
 ];
 
-// ================= REGISTRO =================
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 (async () => {
   try {
-    console.log('🚀 Iniciando registro de comandos...');
-    console.log("🚀 Iniciando bot...");
+    console.log('🚀 Registrando comandos...');
+
     if (!TOKEN || !CLIENT_ID) {
-      throw new Error("❌ Faltan variables de entorno (TOKEN o CLIENT_ID)");
+      throw new Error("❌ Faltan TOKEN o CLIENT_ID");
     }
 
     await rest.put(
@@ -195,8 +193,8 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
       { body: commands }
     );
 
-    console.log(`✅ ${commands.length} comandos registrados correctamente`);
-  } catch (error) {
-    console.error('❌ Error registrando comandos:', error);
+    console.log(`✅ ${commands.length} comandos registrados`);
+  } catch (err) {
+    console.error('❌ Error:', err);
   }
 })();
