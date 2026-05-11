@@ -17,18 +17,22 @@ async function gelbooru(tag) {
       headers: { "User-Agent": "Mozilla/5.0" }
     });
 
-    const posts = res.data?.post;
+    let posts = res.data?.post;
 
-    if (!posts || posts.length === 0) return null;
+    // 🔥 FIX 1: si viene un solo objeto lo convertimos en array
+    if (!posts) return null;
+    if (!Array.isArray(posts)) posts = [posts];
 
-    // filtra SOLO posts con imagen válida
-    const valid = posts.filter(p => p.file_url || p.sample_url);
+    // 🔥 FIX 2: filtrar posts válidos
+    const valid = posts.filter(p =>
+      p?.file_url && typeof p.file_url === "string"
+    );
 
     if (valid.length === 0) return null;
 
     const post = valid[Math.floor(Math.random() * valid.length)];
 
-    return post.file_url || post.sample_url || null;
+    return post.file_url;
 
   } catch (err) {
     console.log("Gelbooru error:", err.response?.status || err.message);
@@ -141,19 +145,27 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     // ================= NEKOS =================
-    if (interaction.commandName === "hentai") {
-      const tag = interaction.options.getString("tag") || "neko";
+    if (interaction.commandName === "nsfw") {
+  const tag = interaction.options.getString("tag") || "neko";
 
-      if (!interaction.channel.nsfw) {
-        return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
-      }
+  if (!interaction.channel.nsfw) {
+    return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
+  }
 
-      const res = await nekos.fetch(tag, 1);
-      const url = res.results?.[0]?.url;
+  const img = await gelbooru(tag);
 
-      return interaction.reply(url || "❌ Sin resultado");
+  if (!img) {
+    return interaction.reply("❌ No se encontraron imágenes reales");
+  }
+
+  return interaction.reply({
+    embeds: [{
+      title: `🔞 Gelbooru: ${tag}`,
+      image: { url: img },
+      color: 0xff0000
+    }]
+  });
     }
-
     // ================= GELBOORU =================
     if (interaction.commandName === "nsfw") {
   const tag = interaction.options.getString("tag") || "neko";
