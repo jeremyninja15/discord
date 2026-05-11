@@ -1,7 +1,8 @@
 const {
   Client,
   GatewayIntentBits,
-  PermissionsBitField
+  PermissionsBitField,
+  EmbedBuilder
 } = require("discord.js");
 
 const axios = require("axios");
@@ -168,7 +169,6 @@ client.on("interactionCreate", async (interaction) => {
     .setColor("Red");
 
   return interaction.reply({ embeds: [embed] });
-      const { EmbedBuilder } = require("discord.js");
     }
 
     // ================= WARN =================
