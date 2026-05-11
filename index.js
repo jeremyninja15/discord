@@ -230,7 +230,6 @@ client.on('interactionCreate', async interaction => {
           flags: 64
         });
       }
-
       // ================= NSFW =================
 
 
@@ -252,7 +251,8 @@ client.on('interactionCreate', async interaction => {
   } catch (err) {
     console.log(err);
     return interaction.reply("❌ Error API");
-  },
+  }
+        },
 
 
         case "nsfw": {
