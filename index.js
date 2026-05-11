@@ -150,17 +150,25 @@ client.on("interactionCreate", async (interaction) => {
 
     // ================= GELBOORU =================
     if (interaction.commandName === "nsfw") {
-      const tag = interaction.options.getString("tag") || "neko";
+  const tag = interaction.options.getString("tag") || "neko";
 
-      if (!interaction.channel.nsfw) {
-        return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
-      }
+  if (!interaction.channel.nsfw) {
+    return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
+  }
 
-      const img = await gelbooru(tag);
+  const img = await gelbooru(tag);
 
-      if (!img) return interaction.reply("❌ Sin resultados");
+  if (!img) {
+    return interaction.reply("❌ Sin resultados");
+  }
 
-      return interaction.reply(img);
+  const embed = new EmbedBuilder()
+    .setTitle(`🔞 Gelbooru: ${tag}`)
+    .setImage(img)
+    .setColor("Red");
+
+  return interaction.reply({ embeds: [embed] });
+      const { EmbedBuilder } = require("discord.js");
     }
 
     // ================= WARN =================
