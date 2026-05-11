@@ -121,7 +121,7 @@ client.on('interactionCreate', async interaction => {
       case "help":
         return interaction.reply(
           "📌 Comandos:\n" +
-          "ping, nivel, ban, kick, warn, warns, clear, rol, quitar, invite"
+          "ping, nivel, ban, kick, warn, warns, clear, rol, quitar, invite, hentai"
         );
 
       case "invite": {
@@ -226,8 +226,8 @@ client.on('interactionCreate', async interaction => {
   try {
 
     const res = await axios.get(
-      "https://nekos.life/api/v2/img/hentai"
-    );
+  "https://api.waifu.pics/nsfw/waifu"
+);
 
     return interaction.reply({
       content: res.data.url
