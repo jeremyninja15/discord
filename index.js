@@ -5,30 +5,31 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 
-// ================= GELBOORU =================
-
-
 const axios = require("axios");
 const xml2js = require("xml2js");
 
-async function gelbooru(tag) {
+// ================= GELBOORU =================
+
+
+
+                      async function gelbooru(tag) {
   try {
-    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(tag)}&limit=20`;
+    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}&limit=20`;
 
-    const res = await axios.get(url);
+    const res = await axios.get(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
+    });
 
-    const parsed = await xml2js.parseStringPromise(res.data);
-
-    const posts = parsed.posts.post;
+    const posts = res.data.post;
 
     if (!posts || posts.length === 0) return null;
 
-    const random = posts[Math.floor(Math.random() * posts.length)];
-
-    return random.$.file_url;
+    return posts[Math.floor(Math.random() * posts.length)].file_url;
 
   } catch (err) {
-    console.log("Gelbooru error:", err.message);
+    console.log("Gelbooru error:", err.response?.status || err.message);
     return null;
   }
 }
