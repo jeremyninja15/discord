@@ -206,46 +206,44 @@ client.on('interactionCreate', async interaction => {
 
       // ================= NSFW =================
 
-      case "hentai": {
 
-        if (!interaction.channel.nsfw) {
-          return interaction.reply({
-            content: "❌ Solo NSFW",
-            flags: 64
-          });
+        case "hentai": {
+
+  if (!interaction.channel.nsfw) {
+    return interaction.reply({
+      content: "❌ Solo NSFW",
+      flags: 64
+    });
+  }
+
+  try {
+
+    const res = await axios.get(
+      "https://nekos.best/api/v2/hentai",
+      { timeout: 8000 }
+    );
+
+    const url = res.data?.results?.[0]?.url;
+
+    if (!url) {
+      return interaction.reply({
+        content: "❌ API respondió vacío",
+        flags: 64
+      });
+    }
+
+    return interaction.reply({ content: url });
+
+  } catch (err) {
+    console.log("❌ ERROR REAL API:", err.message);
+
+    return interaction.reply({
+      content: "❌ API caída o bloqueada (revisar logs)",
+      flags: 64
+    });
+  }
         }
-
-        const apis = [
-          async () => {
-            const res = await axios.get("https://nekos.best/api/v2/hentai");
-            return res.data.results[0].url;
-          },
-          async () => {
-            const res = await axios.get("https://api.waifu.pics/nsfw/waifu");
-            return res.data.url;
-          }
-        ];
-
-        const now = Date.now();
-        if (cooldown.has(interaction.user.id)) {
-          if (now - cooldown.get(interaction.user.id) < 5000) {
-            return interaction.reply({ content: "⏳ Espera", flags: 64 });
-          }
-        }
-        cooldown.set(interaction.user.id, now);
-
-        for (const api of apis) {
-          try {
-            const url = await api();
-            return interaction.reply({ content: url });
-          } catch {}
-        }
-
-        return interaction.reply({
-          content: "❌ Error APIs",
-          flags: 64
-        });
-      }
+        
 
       // ================= WARN =================
 
