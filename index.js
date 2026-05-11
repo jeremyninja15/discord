@@ -9,6 +9,9 @@ const axios = require("axios");
 const fs = require("fs");
 
 // ================= GELBOORU FIXED =================
+
+
+
 async function gelbooru(tag) {
   try {
 
@@ -33,18 +36,25 @@ async function gelbooru(tag) {
       posts = [posts];
     }
 
-    // SOLO IMÁGENES REALES
+    // 🔥 SOLO URLs DIRECTAS BUENAS
     const valid = posts.filter(p => {
 
       if (!p.file_url) return false;
 
-      const url = p.file_url.toLowerCase();
+      const u = p.file_url.toLowerCase();
+
+      // evitar videos y previews basura
+      if (
+        u.includes("/samples/") ||
+        u.endsWith(".webm") ||
+        u.endsWith(".mp4")
+      ) return false;
 
       return (
-        url.endsWith(".jpg") ||
-        url.endsWith(".jpeg") ||
-        url.endsWith(".png") ||
-        url.endsWith(".gif")
+        u.endsWith(".jpg") ||
+        u.endsWith(".jpeg") ||
+        u.endsWith(".png") ||
+        u.endsWith(".gif")
       );
     });
 
@@ -65,6 +75,8 @@ async function gelbooru(tag) {
     return null;
   }
 }
+
+
 
 // ================= DATA =================
 const insultos = require("./insultos.json");
@@ -175,7 +187,10 @@ client.on("interactionCreate", async (interaction) => {
 
     
     // ================= GELBOORU =================
-    if (interaction.commandName === "nsfw") {
+
+
+
+if (interaction.commandName === "nsfw") {
 
   const tag =
     interaction.options.getString("tag") || "hentai";
@@ -197,12 +212,23 @@ client.on("interactionCreate", async (interaction) => {
     );
   }
 
-  // 🔥 enviar imagen como archivo
+  const embed = new EmbedBuilder()
+    .setTitle(`🔞 ${tag}`)
+    .setDescription(`[Abrir imagen](${img})`)
+    .setImage(img)
+    .setColor("Red")
+    .setFooter({
+      text: "Gelbooru"
+    });
+
   return interaction.editReply({
-    content: `🔞 ${tag}`,
-    files: [img]
+    embeds: [embed]
   });
-    }
+}
+
+
+
+    
     // ================= WARN =================
     if (interaction.commandName === "warn") {
       const user = interaction.options.getUser("usuario");
