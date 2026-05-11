@@ -7,6 +7,31 @@ const {
 const axios = require('axios');
 const fs = require('fs');
 
+
+
+async function gelbooru(tag) {
+  try {
+    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}`;
+
+    const res = await axios.get(url);
+
+    const posts = res.data.post;
+
+    if (!posts || posts.length === 0) return null;
+
+    const random = posts[Math.floor(Math.random() * posts.length)];
+
+    return random.file_url;
+
+  } catch (err) {
+    console.log("Gelbooru error:", err.message);
+    return null;
+  }
+}
+
+
+
+
 const insultos = require('./insultos.json');
 const blacklist = insultos.palabras;
 const { Client: NekosClient } = require("nekos-best.js");
@@ -118,7 +143,7 @@ client.on('interactionCreate', async interaction => {
 
       case "help":
         return interaction.reply(
-          "📌 ping, nivel, ban, kick, warn, warns, clear, rol, quitar, invite, hentai"
+          "📌 ping, nivel, ban, kick, warn, warns, clear, rol, quitar, invite, hentai, nsfw"
         );
 
       case "invite": {
@@ -228,8 +253,34 @@ client.on('interactionCreate', async interaction => {
     console.log(err);
     return interaction.reply("❌ Error API");
   }
+        },
+
+
+        case "nsfw": {
+
+  const tag = interaction.options.getString("tag") || "neko";
+
+  if (!interaction.channel.nsfw) {
+    return interaction.reply({
+      content: "❌ Solo en canales NSFW",
+      ephemeral: true
+    });
+  }
+
+  try {
+    const img = await gelbooru(tag);
+
+    if (!img) {
+      return interaction.reply("❌ Sin resultados");
+    }
+
+    return interaction.reply(img);
+
+  } catch (err) {
+    console.log(err);
+    return interaction.reply("❌ Error en Gelbooru");
+  }
         }
-        
 
       // ================= WARN =================
 
