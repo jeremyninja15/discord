@@ -14,8 +14,7 @@ const xml2js = require("xml2js");
 
                       async function gelbooru(tag) {
   try {
-    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}&limit=20`;
-
+    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&tags=${tag}&limit=20`;
     const res = await axios.get(url, {
       headers: {
         "User-Agent": "Mozilla/5.0"
