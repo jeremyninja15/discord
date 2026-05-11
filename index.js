@@ -11,31 +11,57 @@ const fs = require("fs");
 // ================= GELBOORU FIXED =================
 async function gelbooru(tag) {
   try {
-    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}&limit=50&api_key=${process.env.GEL_API_KEY}&user_id=${process.env.GEL_USER_ID}`;
+
+    const url =
+      `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1` +
+      `&limit=100` +
+      `&tags=${encodeURIComponent(tag)}` +
+      `&api_key=${process.env.GEL_API_KEY}` +
+      `&user_id=${process.env.GEL_USER_ID}`;
 
     const res = await axios.get(url, {
-      headers: { "User-Agent": "Mozilla/5.0" }
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
     });
 
-    let posts = res.data?.post;
+    let posts = res.data.post;
 
-    // 🔥 FIX 1: si viene un solo objeto lo convertimos en array
     if (!posts) return null;
-    if (!Array.isArray(posts)) posts = [posts];
 
-    // 🔥 FIX 2: filtrar posts válidos
-    const valid = posts.filter(p =>
-      p?.file_url && typeof p.file_url === "string"
-    );
+    if (!Array.isArray(posts)) {
+      posts = [posts];
+    }
 
-    if (valid.length === 0) return null;
+    // SOLO IMÁGENES REALES
+    const valid = posts.filter(p => {
 
-    const post = valid[Math.floor(Math.random() * valid.length)];
+      if (!p.file_url) return false;
 
-    return post.file_url;
+      const url = p.file_url.toLowerCase();
+
+      return (
+        url.endsWith(".jpg") ||
+        url.endsWith(".jpeg") ||
+        url.endsWith(".png") ||
+        url.endsWith(".gif")
+      );
+    });
+
+    if (!valid.length) return null;
+
+    const random =
+      valid[Math.floor(Math.random() * valid.length)];
+
+    return random.file_url;
 
   } catch (err) {
-    console.log("Gelbooru error:", err.response?.status || err.message);
+
+    console.log(
+      "Gelbooru error:",
+      err.response?.status || err.message
+    );
+
     return null;
   }
 }
@@ -150,26 +176,34 @@ client.on("interactionCreate", async (interaction) => {
     
     // ================= GELBOORU =================
     if (interaction.commandName === "nsfw") {
-  const tag = interaction.options.getString("tag") || "neko";
+
+  const tag =
+    interaction.options.getString("tag") || "hentai";
 
   if (!interaction.channel.nsfw) {
-    return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
+    return interaction.reply({
+      content: "❌ Solo NSFW",
+      ephemeral: true
+    });
   }
+
+  await interaction.deferReply();
 
   const img = await gelbooru(tag);
 
   if (!img) {
-    return interaction.reply("❌ No se encontraron imágenes");
+    return interaction.editReply(
+      "❌ No se encontraron imágenes"
+    );
   }
 
-  return interaction.reply({
-    embeds: [
-      {
-        title: `🔞 Gelbooru: ${tag}`,
-        image: { url: img },
-        color: 0xff0000
-      }
-    ]
+  const embed = new EmbedBuilder()
+    .setTitle(`🔞 ${tag}`)
+    .setImage(img)
+    .setColor("Red");
+
+  return interaction.editReply({
+    embeds: [embed]
   });
     }
 
