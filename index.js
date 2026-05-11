@@ -212,31 +212,21 @@ client.on('interactionCreate', async interaction => {
 
         case "hentai": {
 
+  const tag = interaction.options.getString("tag") || "hentai";
+
   if (!interaction.channel.nsfw) {
-    return interaction.reply({
-      content: "❌ Solo NSFW",
-      flags: 64
-    });
+    return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
   }
 
   try {
-    const types = ["hentai", "neko", "kitsune", "waifu"];
-const type = types[Math.floor(Math.random() * types.length)];
-const res = await nekos.fetch(type, 1);
-
+    const res = await nekos.fetch(tag, 1);
     const url = res.results?.[0]?.url;
 
-    return interaction.reply({
-      content: url
-    });
+    return interaction.reply(url || "❌ Sin resultado");
 
   } catch (err) {
-    console.log("NEKOS ERROR:", err.message);
-
-    return interaction.reply({
-      content: "❌ Error en API Nekos",
-      flags: 64
-    });
+    console.log(err);
+    return interaction.reply("❌ Error API");
   }
         }
         
