@@ -35,10 +35,10 @@ const commands = [
         type: 3,
         required: false,
         choices: [
-          { name: "Hentai", value: "hentai" },
-          { name: "Boobs", value: "boobs" },
-          { name: "Ass", value: "ass" },
-          { name: "Anal", value: "anal" }
+          { name: "Neko", value: "neko" },
+          { name: "Kitsune", value: "kitsune" },
+          { name: "Slap", value: "slap" },
+          { name: "Waifu", value: "waifu" }
         ]
       }
     ]
