@@ -145,27 +145,9 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     // ================= NEKOS =================
-    if (interaction.commandName === "nsfw") {
-  const tag = interaction.options.getString("tag") || "neko";
 
-  if (!interaction.channel.nsfw) {
-    return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
-  }
 
-  const img = await gelbooru(tag);
-
-  if (!img) {
-    return interaction.reply("❌ No se encontraron imágenes reales");
-  }
-
-  return interaction.reply({
-    embeds: [{
-      title: `🔞 Gelbooru: ${tag}`,
-      image: { url: img },
-      color: 0xff0000
-    }]
-  });
-    }
+    
     // ================= GELBOORU =================
     if (interaction.commandName === "nsfw") {
   const tag = interaction.options.getString("tag") || "neko";
