@@ -9,6 +9,7 @@
     "discord.js": "^14.0.0",
     "archiver": "^5.3.1",
     "axios": "^1.9.0", 
-    "nekos-best.js": "latest"
+    "nekos-best.js": "latest",
+    "xml2js": "lastest"
   }
 }
