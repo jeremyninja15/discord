@@ -43,7 +43,18 @@ const commands = [
       }
     ]
   },
-
+{
+  name: "nsfw",
+  description: "📸 Buscador Gelbooru por tags",
+  options: [
+    {
+      name: "tag",
+      description: "Etiqueta a buscar (ej: neko, hentai, waifu)",
+      type: 3,
+      required: false
+    }
+  ]
+},
   // ================= ROLES =================
   {
     name: 'rol',
