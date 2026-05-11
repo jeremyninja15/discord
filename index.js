@@ -197,16 +197,12 @@ client.on("interactionCreate", async (interaction) => {
     );
   }
 
-  const embed = new EmbedBuilder()
-    .setTitle(`🔞 ${tag}`)
-    .setImage(img)
-    .setColor("Red");
-
+  // 🔥 enviar imagen como archivo
   return interaction.editReply({
-    embeds: [embed]
+    content: `🔞 ${tag}`,
+    files: [img]
   });
     }
-
     // ================= WARN =================
     if (interaction.commandName === "warn") {
       const user = interaction.options.getUser("usuario");
