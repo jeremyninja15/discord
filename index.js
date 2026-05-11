@@ -209,6 +209,7 @@ client.on('interactionCreate', async interaction => {
       // ================= NSFW =================
 
 
+
         case "hentai": {
 
   if (!interaction.channel.nsfw) {
@@ -219,28 +220,21 @@ client.on('interactionCreate', async interaction => {
   }
 
   try {
+    const types = ["hentai", "neko", "kitsune", "waifu"];
+const type = types[Math.floor(Math.random() * types.length)];
+const res = await nekos.fetch(type, 1);
 
-    const res = await axios.get(
-      "https://nekos.best/api/v2/hentai",
-      { timeout: 8000 }
-    );
-
-    const url = res.data?.results?.[0]?.url;
-
-    if (!url) {
-      return interaction.reply({
-        content: "❌ API respondió vacío",
-        flags: 64
-      });
-    }
-
-    return interaction.reply({ content: url });
-
-  } catch (err) {
-    console.log("❌ ERROR REAL API:", err.message);
+    const url = res.results?.[0]?.url;
 
     return interaction.reply({
-      content: "❌ API caída o bloqueada (revisar logs)",
+      content: url
+    });
+
+  } catch (err) {
+    console.log("NEKOS ERROR:", err.message);
+
+    return interaction.reply({
+      content: "❌ Error en API Nekos",
       flags: 64
     });
   }
