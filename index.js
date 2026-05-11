@@ -3,28 +3,38 @@ const {
   GatewayIntentBits,
   PermissionsBitField
 } = require('discord.js');
-
-const axios = require('axios');
 const fs = require('fs');
 
 // ================= GELBOORU =================
+
+
+const axios = require("axios");
+const xml2js = require("xml2js");
+
 async function gelbooru(tag) {
   try {
-    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}`;
+    const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(tag)}&limit=20`;
 
     const res = await axios.get(url);
-    const posts = res.data.post;
+
+    const parsed = await xml2js.parseStringPromise(res.data);
+
+    const posts = parsed.posts.post;
 
     if (!posts || posts.length === 0) return null;
 
     const random = posts[Math.floor(Math.random() * posts.length)];
-    return random.file_url;
+
+    return random.$.file_url;
 
   } catch (err) {
     console.log("Gelbooru error:", err.message);
     return null;
   }
 }
+
+
+
 
 // ================= DATA =================
 const insultos = require('./insultos.json');
