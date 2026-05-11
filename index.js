@@ -2,44 +2,37 @@ const {
   Client,
   GatewayIntentBits,
   PermissionsBitField
-} = require('discord.js');
-const fs = require('fs');
+} = require("discord.js");
 
 const axios = require("axios");
-const xml2js = require("xml2js");
+const fs = require("fs");
 
-// ================= GELBOORU =================
-
-
-
-                      async function gelbooru(tag) {
+// ================= GELBOORU FIXED =================
+async function gelbooru(tag) {
   try {
     const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}&limit=20&api_key=${process.env.GEL_API_KEY}&user_id=${process.env.GEL_USER_ID}`;
 
     const res = await axios.get(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0"
-      }
+      headers: { "User-Agent": "Mozilla/5.0" }
     });
 
-    const posts = res.data.post;
+    const posts = res.data?.post;
 
     if (!posts || posts.length === 0) return null;
 
-    return posts[Math.floor(Math.random() * posts.length)].file_url;
+    const post = posts[Math.floor(Math.random() * posts.length)];
+
+    return post?.file_url || null;
 
   } catch (err) {
     console.log("Gelbooru error:", err.response?.status || err.message);
     return null;
   }
-                      }
-
-
-
+}
 
 // ================= DATA =================
-const insultos = require('./insultos.json');
-const blacklist = insultos.palabras;
+const insultos = require("./insultos.json");
+const blacklist = insultos.palabras || [];
 
 const { Client: NekosClient } = require("nekos-best.js");
 const nekos = new NekosClient();
@@ -58,24 +51,24 @@ let warns = {};
 const levels = new Map();
 const warnedTemp = new Map();
 
-if (fs.existsSync('./advertencias.json')) {
-  warns = JSON.parse(fs.readFileSync('./advertencias.json'));
+if (fs.existsSync("./advertencias.json")) {
+  warns = JSON.parse(fs.readFileSync("./advertencias.json"));
 }
 
 function saveWarns() {
-  fs.writeFileSync('./advertencias.json', JSON.stringify(warns, null, 2));
+  fs.writeFileSync("./advertencias.json", JSON.stringify(warns, null, 2));
 }
 
 // ================= READY =================
-client.once('ready', () => {
+client.once("ready", () => {
   console.log(`🔥 ${client.user.tag} activo`);
 });
 
 // ================= MESSAGES =================
-client.on('messageCreate', async message => {
+client.on("messageCreate", async (message) => {
   if (!message.guild || message.author.bot) return;
 
-  const msg = message.content.toLowerCase().replace(/[^a-z0-9]/gi, '');
+  const msg = message.content.toLowerCase().replace(/[^a-z0-9]/gi, "");
   const bad = blacklist.some(p => msg.includes(p));
 
   if (bad) {
@@ -84,19 +77,14 @@ client.on('messageCreate', async message => {
     if (!warnedTemp.has(message.author.id)) {
       warnedTemp.set(message.author.id, true);
 
-      const aviso = await message.channel.send(
-        `⚠ ${message.author} evita insultos.`
-      );
-
+      const aviso = await message.channel.send(`⚠ ${message.author} evita insultos`);
       setTimeout(() => aviso.delete().catch(() => {}), 15000);
       return;
     }
 
     warnedTemp.delete(message.author.id);
 
-    if (!warns[message.author.id]) warns[message.author.id] = 0;
-
-    warns[message.author.id]++;
+    warns[message.author.id] = (warns[message.author.id] || 0) + 1;
     saveWarns();
 
     if (warns[message.author.id] >= 3) {
@@ -108,9 +96,8 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // LEVELS
+  // LEVEL SYSTEM
   const data = levels.get(message.author.id) || { xp: 0, level: 1 };
-
   data.xp += 10;
 
   if (data.xp >= data.level * 100) {
@@ -122,93 +109,73 @@ client.on('messageCreate', async message => {
 });
 
 // ================= INTERACTIONS =================
-client.on('interactionCreate', async interaction => {
+client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   try {
-    switch (interaction.commandName) {
 
-      case "ping":
-        return interaction.reply("🏓 Pong!");
+    // ================= BASIC =================
+    if (interaction.commandName === "ping") {
+      return interaction.reply("🏓 Pong!");
+    }
 
-      case "nivel": {
-        const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
-        return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);
+    if (interaction.commandName === "nivel") {
+      const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
+      return interaction.reply(`📊 Nivel ${data.level} | XP ${data.xp}`);
+    }
+
+    if (interaction.commandName === "help") {
+      return interaction.reply("📌 ping, nivel, hentai, nsfw, ban, kick, clear");
+    }
+
+    if (interaction.commandName === "invite") {
+      return interaction.reply(
+        `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`
+      );
+    }
+
+    // ================= NEKOS =================
+    if (interaction.commandName === "hentai") {
+      const tag = interaction.options.getString("tag") || "neko";
+
+      if (!interaction.channel.nsfw) {
+        return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
       }
 
-      case "help":
-        return interaction.reply("📌 ping, nivel, ban, kick, warn, warns, clear, rol, quitar, invite, hentai, nsfw");
+      const res = await nekos.fetch(tag, 1);
+      const url = res.results?.[0]?.url;
 
-      case "invite": {
-        const link = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`;
-        return interaction.reply(`🔗 ${link}`);
+      return interaction.reply(url || "❌ Sin resultado");
+    }
+
+    // ================= GELBOORU =================
+    if (interaction.commandName === "nsfw") {
+      const tag = interaction.options.getString("tag") || "neko";
+
+      if (!interaction.channel.nsfw) {
+        return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
       }
 
-      // ================= HENTAI (NEKOS) =================
-      case "hentai": {
+      const img = await gelbooru(tag);
 
-        const tag = interaction.options.getString("tag") || "neko";
+      if (!img) return interaction.reply("❌ Sin resultados");
 
-        if (!interaction.channel.nsfw) {
-          return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
-        }
+      return interaction.reply(img);
+    }
 
-        try {
-          const res = await nekos.fetch(tag, 1);
-          const url = res.results?.[0]?.url;
+    // ================= WARN =================
+    if (interaction.commandName === "warn") {
+      const user = interaction.options.getUser("usuario");
 
-          return interaction.reply(url || "❌ Sin resultado");
+      warns[user.id] = (warns[user.id] || 0) + 1;
+      saveWarns();
 
-        } catch (err) {
-          console.log(err);
-          return interaction.reply("❌ Error API Nekos");
-        }
-      }
+      return interaction.reply(`⚠ ${user.tag} tiene ${warns[user.id]}`);
+    }
 
-      // ================= GELBOORU NSFW =================
-      case "nsfw": {
-
-        const tag = interaction.options.getString("tag") || "neko";
-
-        if (!interaction.channel.nsfw) {
-          return interaction.reply({
-            content: "❌ Solo NSFW",
-            ephemeral: true
-          });
-        }
-
-        try {
-          const img = await gelbooru(tag);
-
-          if (!img) {
-            return interaction.reply("❌ Sin resultados");
-          }
-
-          return interaction.reply(img);
-
-        } catch (err) {
-          console.log(err);
-          return interaction.reply("❌ Error Gelbooru");
-        }
-      }
-
-      // ================= WARN =================
-      case "warn": {
-        const user = interaction.options.getUser("usuario");
-
-        if (!warns[user.id]) warns[user.id] = 0;
-
-        warns[user.id]++;
-        saveWarns();
-
-        return interaction.reply(`⚠ ${user.tag} tiene ${warns[user.id]}`);
-      }
-
-      case "warns": {
-        const user = interaction.options.getUser("usuario");
-        return interaction.reply(`📋 ${warns[user.id] || 0}`);
-      }
-
+    if (interaction.commandName === "warns") {
+      const user = interaction.options.getUser("usuario");
+      return interaction.reply(`📋 ${warns[user.id] || 0}`);
     }
 
   } catch (err) {
