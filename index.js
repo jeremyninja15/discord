@@ -190,6 +190,8 @@ client.on("interactionCreate", async (interaction) => {
 
 
 
+
+    // ================= GELBOORU =================
 if (interaction.commandName === "nsfw") {
 
   const tag =
@@ -212,20 +214,41 @@ if (interaction.commandName === "nsfw") {
     );
   }
 
-  const embed = new EmbedBuilder()
-    .setTitle(`🔞 ${tag}`)
-    .setDescription(`[Abrir imagen](${img})`)
-    .setImage(img)
-    .setColor("Red")
-    .setFooter({
-      text: "Gelbooru"
+  try {
+
+    // DESCARGAR IMAGEN
+    const response = await axios.get(img, {
+      responseType: "arraybuffer",
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
     });
 
-  return interaction.editReply({
-    embeds: [embed]
-  });
-}
+    const buffer = Buffer.from(response.data);
 
+    const embed = new EmbedBuilder()
+      .setTitle(`🔞 ${tag}`)
+      .setImage("attachment://gelbooru.jpg")
+      .setColor("Red");
+
+    return interaction.editReply({
+      embeds: [embed],
+      files: [
+        {
+          attachment: buffer,
+          name: "gelbooru.jpg"
+        }
+      ]
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return interaction.editReply(
+      "❌ Error cargando imagen"
+    );
+  }
+}
 
 
     
