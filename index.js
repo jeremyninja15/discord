@@ -9,6 +9,8 @@ const fs = require('fs');
 
 const insultos = require('./insultos.json');
 const blacklist = insultos.palabras;
+const { Client: NekosClient } = require("nekos-best.js");
+const nekos = new NekosClient();
 
 // ================= CLIENT =================
 const client = new Client({
