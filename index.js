@@ -7,20 +7,17 @@ const {
 const axios = require('axios');
 const fs = require('fs');
 
-
-
+// ================= GELBOORU =================
 async function gelbooru(tag) {
   try {
     const url = `https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}`;
 
     const res = await axios.get(url);
-
     const posts = res.data.post;
 
     if (!posts || posts.length === 0) return null;
 
     const random = posts[Math.floor(Math.random() * posts.length)];
-
     return random.file_url;
 
   } catch (err) {
@@ -29,15 +26,13 @@ async function gelbooru(tag) {
   }
 }
 
-
-
-
+// ================= DATA =================
 const insultos = require('./insultos.json');
 const blacklist = insultos.palabras;
+
 const { Client: NekosClient } = require("nekos-best.js");
 const nekos = new NekosClient();
 
-// ================= CLIENT =================
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -47,7 +42,7 @@ const client = new Client({
   ]
 });
 
-// ================= DATOS =================
+// ================= STORAGE =================
 let warns = {};
 const levels = new Map();
 const warnedTemp = new Map();
@@ -60,15 +55,12 @@ function saveWarns() {
   fs.writeFileSync('./advertencias.json', JSON.stringify(warns, null, 2));
 }
 
-// cooldown NSFW
-const cooldown = new Map();
-
 // ================= READY =================
 client.once('ready', () => {
   console.log(`🔥 ${client.user.tag} activo`);
 });
 
-// ================= MENSAJES =================
+// ================= MESSAGES =================
 client.on('messageCreate', async message => {
   if (!message.guild || message.author.bot) return;
 
@@ -76,15 +68,13 @@ client.on('messageCreate', async message => {
   const bad = blacklist.some(p => msg.includes(p));
 
   if (bad) {
-    try {
-      await message.delete();
-    } catch {}
+    try { await message.delete(); } catch {}
 
     if (!warnedTemp.has(message.author.id)) {
       warnedTemp.set(message.author.id, true);
 
       const aviso = await message.channel.send(
-        `⚠ ${message.author} evita insultos.\n❗ Próxima será advertencia real.`
+        `⚠ ${message.author} evita insultos.`
       );
 
       setTimeout(() => aviso.delete().catch(() => {}), 15000);
@@ -98,24 +88,18 @@ client.on('messageCreate', async message => {
     warns[message.author.id]++;
     saveWarns();
 
-    let texto = `⚠ ${message.author} tiene ${warns[message.author.id]}/3 advertencias`;
-
     if (warns[message.author.id] >= 3) {
       try {
         const member = await message.guild.members.fetch(message.author.id);
         await member.kick();
         warns[message.author.id] = 0;
-        texto += `\n👢 Expulsado`;
-      } catch {
-        texto += `\n❌ Error al expulsar`;
-      }
+      } catch {}
     }
-
-    return message.channel.send(texto);
   }
 
-  // NIVELES
+  // LEVELS
   const data = levels.get(message.author.id) || { xp: 0, level: 1 };
+
   data.xp += 10;
 
   if (data.xp >= data.level * 100) {
@@ -126,7 +110,7 @@ client.on('messageCreate', async message => {
   levels.set(message.author.id, data);
 });
 
-// ================= INTERACCIONES =================
+// ================= INTERACTIONS =================
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -142,151 +126,67 @@ client.on('interactionCreate', async interaction => {
       }
 
       case "help":
-        return interaction.reply(
-          "📌 ping, nivel, ban, kick, warn, warns, clear, rol, quitar, invite, hentai, nsfw"
-        );
+        return interaction.reply("📌 ping, nivel, ban, kick, warn, warns, clear, rol, quitar, invite, hentai, nsfw");
 
       case "invite": {
         const link = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`;
         return interaction.reply(`🔗 ${link}`);
       }
 
-      // ================= ROLES =================
+      // ================= HENTAI (NEKOS) =================
+      case "hentai": {
 
-      case "rol": {
-        if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ManageRoles))
-          return interaction.reply({ content: "❌ Sin permisos", flags: 64 });
+        const tag = interaction.options.getString("tag") || "neko";
 
-        const user = interaction.options.getUser("usuario");
-        const tipo = interaction.options.getString("tipo");
+        if (!interaction.channel.nsfw) {
+          return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
+        }
 
-        const member = await interaction.guild.members.fetch(user.id);
+        try {
+          const res = await nekos.fetch(tag, 1);
+          const url = res.results?.[0]?.url;
 
-        const role = interaction.guild.roles.cache.find(r =>
-          r.name.toLowerCase().includes(tipo)
-        );
+          return interaction.reply(url || "❌ Sin resultado");
 
-        if (!role) return interaction.reply({ content: "❌ Rol no encontrado", flags: 64 });
-
-        if (role.position >= interaction.guild.members.me.roles.highest.position)
-          return interaction.reply({ content: "❌ Rol más alto que el bot", flags: 64 });
-
-        await member.roles.add(role);
-
-        return interaction.reply(`✅ Rol ${role.name} dado a ${user.tag}`);
+        } catch (err) {
+          console.log(err);
+          return interaction.reply("❌ Error API Nekos");
+        }
       }
 
-      case "quitar": {
-        if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ManageRoles))
-          return interaction.reply({ content: "❌ Sin permisos", flags: 64 });
+      // ================= GELBOORU NSFW =================
+      case "nsfw": {
 
-        const user = interaction.options.getUser("usuario");
-        const role = interaction.options.getRole("roleo");
+        const tag = interaction.options.getString("tag") || "neko";
 
-        const member = await interaction.guild.members.fetch(user.id);
+        if (!interaction.channel.nsfw) {
+          return interaction.reply({
+            content: "❌ Solo NSFW",
+            ephemeral: true
+          });
+        }
 
-        if (!member.roles.cache.has(role.id))
-          return interaction.reply(`❌ No tiene ese rol`);
+        try {
+          const img = await gelbooru(tag);
 
-        await member.roles.remove(role);
+          if (!img) {
+            return interaction.reply("❌ Sin resultados");
+          }
 
-        return interaction.reply(`🧹 Rol quitado a ${user.tag}`);
+          return interaction.reply(img);
+
+        } catch (err) {
+          console.log(err);
+          return interaction.reply("❌ Error Gelbooru");
+        }
       }
-
-      // ================= MODERACION =================
-
-      case "ban": {
-        if (!interaction.memberPermissions.has(PermissionsBitField.Flags.BanMembers))
-          return interaction.reply({ content: "❌ Sin permisos", flags: 64 });
-
-        const user = interaction.options.getUser("usuario");
-        const member = await interaction.guild.members.fetch(user.id);
-
-        await member.ban();
-        return interaction.reply(`🔨 ${user.tag} baneado`);
-      }
-
-      case "kick": {
-        if (!interaction.memberPermissions.has(PermissionsBitField.Flags.KickMembers))
-          return interaction.reply({ content: "❌ Sin permisos", flags: 64 });
-
-        const user = interaction.options.getUser("usuario");
-        const member = await interaction.guild.members.fetch(user.id);
-
-        await member.kick();
-        return interaction.reply(`👢 ${user.tag} expulsado`);
-      }
-
-      case "clear": {
-        if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ManageMessages))
-          return interaction.reply({ content: "❌ Sin permisos", flags: 64 });
-
-        const cantidad = interaction.options.getInteger("cantidad");
-
-        await interaction.channel.bulkDelete(cantidad, true);
-
-        return interaction.reply({
-          content: `🧹 ${cantidad} mensajes eliminados`,
-          flags: 64
-        });
-      }
-      // ================= NSFW =================
-
-
-
-        case "hentai": {
-
-  const tag = interaction.options.getString("tag") || "hentai";
-
-  if (!interaction.channel.nsfw) {
-    return interaction.reply({ content: "❌ Solo NSFW", ephemeral: true });
-  }
-
-  try {
-    const res = await nekos.fetch(tag, 1);
-    const url = res.results?.[0]?.url;
-
-    return interaction.reply(url || "❌ Sin resultado");
-
-  } catch (err) {
-    console.log(err);
-    return interaction.reply("❌ Error API");
-  }
-        },
-
-
-        case "nsfw": {
-
-  const tag = interaction.options.getString("tag") || "neko";
-
-  if (!interaction.channel.nsfw) {
-    return interaction.reply({
-      content: "❌ Solo en canales NSFW",
-      ephemeral: true
-    });
-  }
-
-  try {
-    const img = await gelbooru(tag);
-
-    if (!img) {
-      return interaction.reply("❌ Sin resultados");
-    }
-
-    return interaction.reply(img);
-
-  } catch (err) {
-    console.log(err);
-    return interaction.reply("❌ Error en Gelbooru");
-  }
-        },
 
       // ================= WARN =================
-
       case "warn": {
         const user = interaction.options.getUser("usuario");
 
         if (!warns[user.id]) warns[user.id] = 0;
+
         warns[user.id]++;
         saveWarns();
 
@@ -295,14 +195,14 @@ client.on('interactionCreate', async interaction => {
 
       case "warns": {
         const user = interaction.options.getUser("usuario");
-        return interaction.reply(`📋 ${warns[user.id] || 0} advertencias`);
+        return interaction.reply(`📋 ${warns[user.id] || 0}`);
       }
 
     }
 
   } catch (err) {
     console.error(err);
-    return interaction.reply({ content: "❌ Error", flags: 64 });
+    return interaction.reply({ content: "❌ Error", ephemeral: true });
   }
 });
 
