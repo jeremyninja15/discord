@@ -159,15 +159,18 @@ client.on("interactionCreate", async (interaction) => {
   const img = await gelbooru(tag);
 
   if (!img) {
-    return interaction.reply("❌ Sin resultados");
+    return interaction.reply("❌ No se encontraron imágenes");
   }
 
-  const embed = new EmbedBuilder()
-    .setTitle(`🔞 Gelbooru: ${tag}`)
-    .setImage(img)
-    .setColor("Red");
-
-  return interaction.reply({ embeds: [embed] });
+  return interaction.reply({
+    embeds: [
+      {
+        title: `🔞 Gelbooru: ${tag}`,
+        image: { url: img },
+        color: 0xff0000
+      }
+    ]
+  });
     }
 
     // ================= WARN =================
