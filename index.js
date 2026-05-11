@@ -36,34 +36,20 @@ async function gelbooru(tag) {
       posts = [posts];
     }
 
-    // 🔥 SOLO URLs DIRECTAS BUENAS
-    const valid = posts.filter(p => {
-
-      if (!p.file_url) return false;
-
-      const u = p.file_url.toLowerCase();
-
-      // evitar videos y previews basura
-      if (
-        u.includes("/samples/") ||
-        u.endsWith(".webm") ||
-        u.endsWith(".mp4")
-      ) return false;
-
-      return (
-        u.endsWith(".jpg") ||
-        u.endsWith(".jpeg") ||
-        u.endsWith(".png") ||
-        u.endsWith(".gif")
-      );
-    });
+    const valid = posts.filter(p =>
+      p.sample_url || p.file_url
+    );
 
     if (!valid.length) return null;
 
     const random =
       valid[Math.floor(Math.random() * valid.length)];
 
-    return random.file_url;
+    // 🔥 USAR SAMPLE URL PRIMERO
+    return (
+      random.sample_url ||
+      random.file_url
+    );
 
   } catch (err) {
 
@@ -75,8 +61,6 @@ async function gelbooru(tag) {
     return null;
   }
 }
-
-
 
 // ================= DATA =================
 const insultos = require("./insultos.json");
@@ -191,11 +175,10 @@ client.on("interactionCreate", async (interaction) => {
 
 
 
-    // ================= GELBOORU =================
 if (interaction.commandName === "nsfw") {
 
   const tag =
-    interaction.options.getString("tag") || "hentai";
+    interaction.options.getString("tag") || "ass";
 
   if (!interaction.channel.nsfw) {
     return interaction.reply({
@@ -210,47 +193,19 @@ if (interaction.commandName === "nsfw") {
 
   if (!img) {
     return interaction.editReply(
-      "❌ No se encontraron imágenes"
+      "❌ Sin imágenes"
     );
   }
 
-  try {
+  const embed = new EmbedBuilder()
+    .setTitle(`🔞 ${tag}`)
+    .setImage(img)
+    .setColor("Red");
 
-    // DESCARGAR IMAGEN
-    const response = await axios.get(img, {
-      responseType: "arraybuffer",
-      headers: {
-        "User-Agent": "Mozilla/5.0"
-      }
-    });
-
-    const buffer = Buffer.from(response.data);
-
-    const embed = new EmbedBuilder()
-      .setTitle(`🔞 ${tag}`)
-      .setImage("attachment://gelbooru.jpg")
-      .setColor("Red");
-
-    return interaction.editReply({
-      embeds: [embed],
-      files: [
-        {
-          attachment: buffer,
-          name: "gelbooru.jpg"
-        }
-      ]
-    });
-
-  } catch (err) {
-    console.log(err);
-
-    return interaction.editReply(
-      "❌ Error cargando imagen"
-    );
-  }
+  return interaction.editReply({
+    embeds: [embed]
+  });
 }
-
-
     
     // ================= WARN =================
     if (interaction.commandName === "warn") {
