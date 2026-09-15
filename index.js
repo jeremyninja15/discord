@@ -1,7 +1,9 @@
 const {
   Client,
   GatewayIntentBits,
-  PermissionsBitField
+  PermissionsBitField,
+  EmbedBuilder,
+  AttachmentBuilder
 } = require("discord.js");
 
 const fs = require("fs");
@@ -87,14 +89,12 @@ function puedeModerar(member, botMember) {
     return false;
   }
 
-  // No se puede moderar al dueño
   if (
     member.guild.ownerId === member.id
   ) {
     return false;
   }
 
-  // El bot debe estar por encima
   if (
     member.roles.highest.position >=
     botMember.roles.highest.position
@@ -155,17 +155,10 @@ client.on(
 
       if (bad) {
 
-        // Intentar borrar
         try {
           await message.delete();
-        } catch (err) {
-          console.log(
-            "⚠️ No se pudo borrar el mensaje:",
-            err.message
-          );
-        }
+        } catch {}
 
-        // Primera advertencia temporal
         if (
           !warnedTemp.has(
             message.author.id
@@ -190,17 +183,11 @@ client.on(
               );
             }, 15000);
 
-          } catch (err) {
-            console.error(
-              "❌ Error enviando aviso:",
-              err.message
-            );
-          }
+          } catch {}
 
           return;
         }
 
-        // Segunda detección
         warnedTemp.delete(
           message.author.id
         );
@@ -229,10 +216,7 @@ client.on(
 
         } catch {}
 
-        // =================================================
-        // 3 WARNS = KICK
-        // =================================================
-
+        // 3 advertencias = kick
         if (cantidad >= 3) {
 
           try {
@@ -245,31 +229,16 @@ client.on(
             const bot =
               message.guild.members.me;
 
-            if (!bot) {
-              console.log(
-                "❌ No se encontró el miembro del bot."
-              );
-
-            } else if (
-              !bot.permissions.has(
+            if (
+              bot &&
+              bot.permissions.has(
                 PermissionsBitField.Flags.KickMembers
-              )
-            ) {
-              console.log(
-                "❌ El bot no tiene KickMembers."
-              );
-
-            } else if (
-              !puedeModerar(
+              ) &&
+              puedeModerar(
                 member,
                 bot
               )
             ) {
-              console.log(
-                "❌ El bot no puede expulsar a este usuario."
-              );
-
-            } else {
 
               await member.kick(
                 "3 advertencias por insultos"
@@ -287,7 +256,7 @@ client.on(
           } catch (err) {
 
             console.error(
-              "❌ Error ejecutando kick automático:",
+              "❌ Error en kick automático:",
               err.message
             );
           }
@@ -318,7 +287,6 @@ client.on(
       ) {
 
         data.xp -= xpNecesaria;
-
         data.level++;
 
         try {
@@ -368,8 +336,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "ping"
+        interaction.commandName === "ping"
       ) {
 
         return await interaction.reply(
@@ -378,12 +345,114 @@ client.on(
       }
 
       // =================================================
+      // IMAGEN
+      // =================================================
+
+      if (
+        interaction.commandName === "imagen"
+      ) {
+
+        const promptOriginal =
+          interaction.options.getString(
+            "prompt"
+          );
+
+        const estiloElegido =
+          interaction.options.getString(
+            "estilo"
+          );
+
+        if (!promptOriginal) {
+
+          return await interaction.reply({
+            content:
+              "❌ Debes indicar un prompt.",
+            ephemeral: true
+          });
+        }
+
+        if (!estiloElegido) {
+
+          return await interaction.reply({
+            content:
+              "❌ Debes seleccionar un estilo.",
+            ephemeral: true
+          });
+        }
+
+        await interaction.deferReply();
+
+        const promptFinal =
+          `${promptOriginal}, ${estiloElegido}`;
+
+        const promptCodificado =
+          encodeURIComponent(
+            promptFinal
+          );
+
+        const seedRandom =
+          Math.floor(
+            Math.random() * 999999
+          );
+
+        const urlImagen =
+          `https://pollinations.ai/${promptCodificado}` +
+          `?width=1024` +
+          `&height=1024` +
+          `&seed=${seedRandom}` +
+          `&enhance=true`;
+
+        try {
+
+          const attachment =
+            new AttachmentBuilder(
+              urlImagen,
+              {
+                name: "ia-image.png"
+              }
+            );
+
+          const embed =
+            new EmbedBuilder()
+              .setTitle(
+                "✨ ¡Tu imagen ha sido generada!"
+              )
+              .setDescription(
+                `**Prompt:** ${promptOriginal}`
+              )
+              .setColor("#2b2d31")
+              .setImage(
+                "attachment://ia-image.png"
+              )
+              .setFooter({
+                text:
+                  "Generado con Pollinations AI"
+              });
+
+          return await interaction.editReply({
+            embeds: [embed],
+            files: [attachment]
+          });
+
+        } catch (err) {
+
+          console.error(
+            "❌ Error generando imagen:",
+            err
+          );
+
+          return await interaction.editReply(
+            "❌ Hubo un error al generar o enviar la imagen."
+          );
+        }
+      }
+
+      // =================================================
       // NIVEL
       // =================================================
 
       if (
-        interaction.commandName ===
-        "nivel"
+        interaction.commandName === "nivel"
       ) {
 
         const data =
@@ -404,14 +473,13 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "help"
+        interaction.commandName === "help"
       ) {
 
         return await interaction.reply(
           "📌 **Comandos disponibles**\n\n" +
-
           "🏓 `/ping`\n" +
+          "🖼️ `/imagen`\n" +
           "📊 `/nivel`\n" +
           "⚠️ `/warn`\n" +
           "📋 `/warns`\n" +
@@ -431,8 +499,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "invite"
+        interaction.commandName === "invite"
       ) {
 
         if (!process.env.CLIENT_ID) {
@@ -460,8 +527,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "hentai"
+        interaction.commandName === "hentai"
       ) {
 
         if (
@@ -470,7 +536,7 @@ client.on(
 
           return await interaction.reply({
             content:
-              "❌ Este comando solamente puede utilizarse en un canal marcado como NSFW.",
+              "❌ Este comando solamente puede utilizarse en un canal NSFW.",
             ephemeral: true
           });
         }
@@ -481,8 +547,7 @@ client.on(
           ) || "neko";
 
         return await interaction.reply(
-          `🔞 Comando /hentai recibido.\n🏷️ Tag: \`${tag}\`\n\n` +
-          "El comando está reservado para contenido permitido en canales NSFW."
+          `🔞 Comando /hentai recibido.\n🏷️ Tag: \`${tag}\``
         );
       }
 
@@ -491,8 +556,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "nsfw"
+        interaction.commandName === "nsfw"
       ) {
 
         if (
@@ -501,7 +565,7 @@ client.on(
 
           return await interaction.reply({
             content:
-              "❌ Este comando solamente puede utilizarse en un canal marcado como NSFW.",
+              "❌ Este comando solamente puede utilizarse en un canal NSFW.",
             ephemeral: true
           });
         }
@@ -521,8 +585,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "warn"
+        interaction.commandName === "warn"
       ) {
 
         if (
@@ -568,8 +631,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "warns"
+        interaction.commandName === "warns"
       ) {
 
         const user =
@@ -596,8 +658,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "ban"
+        interaction.commandName === "ban"
       ) {
 
         if (
@@ -618,15 +679,6 @@ client.on(
           interaction.options.getUser(
             "usuario"
           );
-
-        if (!user) {
-
-          return await interaction.reply({
-            content:
-              "❌ Usuario no encontrado.",
-            ephemeral: true
-          });
-        }
 
         const member =
           await interaction.guild.members
@@ -696,8 +748,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "kick"
+        interaction.commandName === "kick"
       ) {
 
         if (
@@ -781,8 +832,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "clear"
+        interaction.commandName === "clear"
       ) {
 
         if (
@@ -851,8 +901,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "rol"
+        interaction.commandName === "rol"
       ) {
 
         if (
@@ -894,15 +943,15 @@ client.on(
           );
         }
 
-        let roleName;
+        const roleName =
+          tipo === "mod"
+            ? "Mod"
+            : tipo === "admin"
+              ? "Admin"
+              : null;
 
-        if (tipo === "mod") {
-          roleName = "Mod";
-        } else if (
-          tipo === "admin"
-        ) {
-          roleName = "Admin";
-        } else {
+        if (!roleName) {
+
           return await interaction.reply(
             "❌ Tipo de rol inválido."
           );
@@ -934,9 +983,7 @@ client.on(
 
         try {
 
-          await member.roles.add(
-            role
-          );
+          await member.roles.add(role);
 
           return await interaction.reply(
             `✅ **${role.name}** asignado a ${user.tag}.`
@@ -960,8 +1007,7 @@ client.on(
       // =================================================
 
       if (
-        interaction.commandName ===
-        "quitar"
+        interaction.commandName === "quitar"
       ) {
 
         if (
@@ -1058,7 +1104,7 @@ client.on(
       }
 
       // =================================================
-      // COMANDO DESCONOCIDO
+      // DESCONOCIDO
       // =================================================
 
       return await interaction.reply({
@@ -1073,10 +1119,6 @@ client.on(
         `❌ Error en /${interaction.commandName}:`,
         err
       );
-
-      // =================================================
-      // EVITAR DOBLE RESPUESTA
-      // =================================================
 
       try {
 
@@ -1101,7 +1143,7 @@ client.on(
       } catch (replyError) {
 
         console.error(
-          "❌ No se pudo responder a la interacción:",
+          "❌ No se pudo responder:",
           replyError.message
         );
       }
