@@ -7,6 +7,7 @@ const {
 } = require("discord.js");
 
 const fs = require("fs");
+const { fetchRandom } = require("nekos-best.js");
 
 // =====================================================
 // CLIENT
@@ -89,9 +90,7 @@ function puedeModerar(member, botMember) {
     return false;
   }
 
-  if (
-    member.guild.ownerId === member.id
-  ) {
+  if (member.guild.ownerId === member.id) {
     return false;
   }
 
@@ -489,8 +488,8 @@ client.on(
           "👤 `/rol`\n" +
           "🧹 `/quitar`\n" +
           "🔗 `/invite`\n" +
-          "🔞 `/hentai`\n" +
-          "🔞 `/nsfw`"
+          "🌸 `/hentai`\n" +
+          "🌸 `/nsfw`"
         );
       }
 
@@ -530,25 +529,54 @@ client.on(
         interaction.commandName === "hentai"
       ) {
 
-        if (
-          !interaction.channel?.nsfw
-        ) {
-
-          return await interaction.reply({
-            content:
-              "❌ Este comando solamente puede utilizarse en un canal NSFW.",
-            ephemeral: true
-          });
-        }
-
         const tag =
           interaction.options.getString(
             "tag"
           ) || "neko";
 
-        return await interaction.reply(
-          `🔞 Comando /hentai recibido.\n🏷️ Tag: \`${tag}\``
-        );
+        await interaction.deferReply();
+
+        try {
+
+          const result =
+            await fetchRandom(tag);
+
+          if (!result?.url) {
+
+            return await interaction.editReply(
+              "❌ No encontré una imagen para ese tag."
+            );
+          }
+
+          const embed =
+            new EmbedBuilder()
+              .setTitle(
+                `🌸 Anime — ${tag}`
+              )
+              .setImage(
+                result.url
+              )
+              .setColor("Random")
+              .setFooter({
+                text:
+                  "Imagen anime no explícita"
+              });
+
+          return await interaction.editReply({
+            embeds: [embed]
+          });
+
+        } catch (err) {
+
+          console.error(
+            "❌ Error /hentai:",
+            err
+          );
+
+          return await interaction.editReply(
+            "❌ No pude obtener la imagen."
+          );
+        }
       }
 
       // =================================================
@@ -570,14 +598,49 @@ client.on(
           });
         }
 
-        const tag =
-          interaction.options.getString(
-            "tag"
-          ) || "default";
+        await interaction.deferReply();
 
-        return await interaction.reply(
-          `🔞 Comando /nsfw recibido.\n🏷️ Tag: \`${tag}\``
-        );
+        try {
+
+          const result =
+            await fetchRandom("waifu");
+
+          if (!result?.url) {
+
+            return await interaction.editReply(
+              "❌ No encontré una imagen."
+            );
+          }
+
+          const embed =
+            new EmbedBuilder()
+              .setTitle(
+                "🌸 Imagen anime"
+              )
+              .setImage(
+                result.url
+              )
+              .setColor("Random")
+              .setFooter({
+                text:
+                  "Contenido anime no explícito"
+              });
+
+          return await interaction.editReply({
+            embeds: [embed]
+          });
+
+        } catch (err) {
+
+          console.error(
+            "❌ Error /nsfw:",
+            err
+          );
+
+          return await interaction.editReply(
+            "❌ No pude obtener la imagen."
+          );
+        }
       }
 
       // =================================================
