@@ -6,7 +6,9 @@ const {
 
 const fs = require("fs");
 
-// ================= CLIENT =================
+// =====================================================
+// CLIENT
+// =====================================================
 
 const client = new Client({
   intents: [
@@ -17,15 +19,21 @@ const client = new Client({
   ]
 });
 
-// ================= DATOS =================
+// =====================================================
+// DATOS
+// =====================================================
 
 const insultos = require("./insultos.json");
 
 const blacklist = Array.isArray(insultos.palabras)
-  ? insultos.palabras.map(p => String(p).toLowerCase())
+  ? insultos.palabras.map(p =>
+      String(p).toLowerCase()
+    )
   : [];
 
-// ================= STORAGE =================
+// =====================================================
+// STORAGE
+// =====================================================
 
 let warns = {};
 
@@ -35,7 +43,10 @@ const warnedTemp = new Map();
 if (fs.existsSync("./advertencias.json")) {
   try {
     warns = JSON.parse(
-      fs.readFileSync("./advertencias.json", "utf8")
+      fs.readFileSync(
+        "./advertencias.json",
+        "utf8"
+      )
     );
   } catch (err) {
     console.error(
@@ -61,224 +72,304 @@ function saveWarns() {
   }
 }
 
-// ================= READY =================
+// =====================================================
+// FUNCIONES
+// =====================================================
+
+function tienePermiso(interaction, permiso) {
+  return interaction.memberPermissions?.has(
+    permiso
+  );
+}
+
+function puedeModerar(member, botMember) {
+  if (!member || !botMember) {
+    return false;
+  }
+
+  // No se puede moderar al dueño
+  if (
+    member.guild.ownerId === member.id
+  ) {
+    return false;
+  }
+
+  // El bot debe estar por encima
+  if (
+    member.roles.highest.position >=
+    botMember.roles.highest.position
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+// =====================================================
+// READY
+// =====================================================
 
 client.once("clientReady", () => {
-  console.log(`🔥 ${client.user.tag} activo`);
-  console.log(`🏠 Servidores: ${client.guilds.cache.size}`);
+  console.log(
+    `🔥 ${client.user.tag} activo`
+  );
+
+  console.log(
+    `🏠 Servidores: ${client.guilds.cache.size}`
+  );
 });
 
-// ================= MENSAJES =================
-
-client.on("messageCreate", async message => {
-  if (!message.guild || message.author.bot) {
-    return;
-  }
-
-  try {
-
-    // ================= FILTRO DE INSULTOS =================
-
-    const msg = message.content
-      .toLowerCase()
-      .replace(/[^a-z0-9áéíóúñü]/gi, "");
-
-    const bad = blacklist.some(p =>
-      msg.includes(p)
-    );
-
-    if (bad) {
-
-      // Intentar borrar mensaje
-      try {
-        await message.delete();
-      } catch (err) {
-        console.log(
-          "⚠️ No se pudo borrar el mensaje:",
-          err.message
-        );
-      }
-
-      // Primera advertencia temporal
-      if (!warnedTemp.has(message.author.id)) {
-
-        warnedTemp.set(
-          message.author.id,
-          true
-        );
-
-        try {
-
-          const aviso =
-            await message.channel.send(
-              `⚠️ ${message.author} evita los insultos`
-            );
-
-          setTimeout(() => {
-            aviso.delete().catch(() => {});
-          }, 15000);
-
-        } catch (err) {
-          console.error(
-            "❌ Error enviando aviso:",
-            err.message
-          );
-        }
-
-        return;
-      }
-
-      // Segunda vez
-      warnedTemp.delete(
-        message.author.id
-      );
-
-      warns[message.author.id] =
-        (warns[message.author.id] || 0) + 1;
-
-      saveWarns();
-
-      const cantidad =
-        warns[message.author.id];
-
-      try {
-
-        const aviso =
-          await message.channel.send(
-            `⚠️ ${message.author} tiene ${cantidad}/3 advertencias`
-          );
-
-        setTimeout(() => {
-          aviso.delete().catch(() => {});
-        }, 15000);
-
-      } catch {}
-
-      // Tres advertencias = kick
-      if (cantidad >= 3) {
-
-        try {
-
-          const member =
-            await message.guild.members.fetch(
-              message.author.id
-            );
-
-          const bot =
-            message.guild.members.me;
-
-          if (!bot) {
-            console.log(
-              "❌ No pude obtener al bot como miembro"
-            );
-          } else if (
-            !bot.permissions.has(
-              PermissionsBitField.Flags.KickMembers
-            )
-          ) {
-            console.log(
-              "❌ El bot no tiene permiso KickMembers"
-            );
-          } else if (
-            member.id === message.guild.ownerId
-          ) {
-            console.log(
-              "❌ No se puede expulsar al dueño del servidor"
-            );
-          } else if (
-            member.roles.highest.position >=
-            bot.roles.highest.position
-          ) {
-            console.log(
-              "❌ No se puede expulsar a este usuario por jerarquía de roles"
-            );
-          } else {
-
-            await member.kick(
-              "3 advertencias por insultos"
-            );
-
-            warns[message.author.id] = 0;
-            saveWarns();
-
-            try {
-              await message.channel.send(
-                `👢 ${message.author.tag} fue expulsado por acumular 3 advertencias.`
-              );
-            } catch {}
-          }
-
-        } catch (err) {
-
-          console.error(
-            "❌ Error al expulsar:",
-            err.message
-          );
-        }
-      }
-
-      return;
-    }
-
-    // ================= SISTEMA DE NIVELES =================
-
-    const data =
-      levels.get(message.author.id) || {
-        xp: 0,
-        level: 1
-      };
-
-    data.xp += 10;
-
-    const xpNecesaria =
-      data.level * 100;
-
-    if (data.xp >= xpNecesaria) {
-
-      data.xp -= xpNecesaria;
-      data.level++;
-
-      try {
-        await message.channel.send(
-          `🎉 ${message.author} subió a nivel ${data.level}`
-        );
-      } catch {}
-    }
-
-    levels.set(
-      message.author.id,
-      data
-    );
-
-  } catch (err) {
-
-    console.error(
-      "❌ Error en messageCreate:",
-      err
-    );
-  }
-});
-
-// ================= INTERACCIONES =================
+// =====================================================
+// MENSAJES
+// =====================================================
 
 client.on(
-  "interactionCreate",
-  async interaction => {
+  "messageCreate",
+  async message => {
 
-    if (!interaction.isChatInputCommand()) {
+    if (
+      !message.guild ||
+      message.author.bot
+    ) {
       return;
     }
 
     try {
 
-      console.log(
-        `📥 /${interaction.commandName} recibido`
-      );
+      // =================================================
+      // FILTRO DE INSULTOS
+      // =================================================
 
-      // ================= PING =================
+      const msg =
+        message.content
+          .toLowerCase()
+          .replace(
+            /[^a-z0-9áéíóúñü]/gi,
+            ""
+          );
+
+      const bad =
+        blacklist.some(p =>
+          msg.includes(p)
+        );
+
+      if (bad) {
+
+        // Intentar borrar
+        try {
+          await message.delete();
+        } catch (err) {
+          console.log(
+            "⚠️ No se pudo borrar el mensaje:",
+            err.message
+          );
+        }
+
+        // Primera advertencia temporal
+        if (
+          !warnedTemp.has(
+            message.author.id
+          )
+        ) {
+
+          warnedTemp.set(
+            message.author.id,
+            true
+          );
+
+          try {
+
+            const aviso =
+              await message.channel.send(
+                `⚠️ ${message.author} evita los insultos.`
+              );
+
+            setTimeout(() => {
+              aviso.delete().catch(
+                () => {}
+              );
+            }, 15000);
+
+          } catch (err) {
+            console.error(
+              "❌ Error enviando aviso:",
+              err.message
+            );
+          }
+
+          return;
+        }
+
+        // Segunda detección
+        warnedTemp.delete(
+          message.author.id
+        );
+
+        warns[message.author.id] =
+          (warns[message.author.id] || 0) +
+          1;
+
+        saveWarns();
+
+        const cantidad =
+          warns[message.author.id];
+
+        try {
+
+          const aviso =
+            await message.channel.send(
+              `⚠️ ${message.author} tiene ${cantidad}/3 advertencias.`
+            );
+
+          setTimeout(() => {
+            aviso.delete().catch(
+              () => {}
+            );
+          }, 15000);
+
+        } catch {}
+
+        // =================================================
+        // 3 WARNS = KICK
+        // =================================================
+
+        if (cantidad >= 3) {
+
+          try {
+
+            const member =
+              await message.guild.members.fetch(
+                message.author.id
+              );
+
+            const bot =
+              message.guild.members.me;
+
+            if (!bot) {
+              console.log(
+                "❌ No se encontró el miembro del bot."
+              );
+
+            } else if (
+              !bot.permissions.has(
+                PermissionsBitField.Flags.KickMembers
+              )
+            ) {
+              console.log(
+                "❌ El bot no tiene KickMembers."
+              );
+
+            } else if (
+              !puedeModerar(
+                member,
+                bot
+              )
+            ) {
+              console.log(
+                "❌ El bot no puede expulsar a este usuario."
+              );
+
+            } else {
+
+              await member.kick(
+                "3 advertencias por insultos"
+              );
+
+              warns[message.author.id] = 0;
+
+              saveWarns();
+
+              await message.channel.send(
+                `👢 ${message.author.tag} fue expulsado por acumular 3 advertencias.`
+              );
+            }
+
+          } catch (err) {
+
+            console.error(
+              "❌ Error ejecutando kick automático:",
+              err.message
+            );
+          }
+        }
+
+        return;
+      }
+
+      // =================================================
+      // SISTEMA DE NIVELES
+      // =================================================
+
+      const data =
+        levels.get(
+          message.author.id
+        ) || {
+          xp: 0,
+          level: 1
+        };
+
+      data.xp += 10;
+
+      const xpNecesaria =
+        data.level * 100;
 
       if (
-        interaction.commandName === "ping"
+        data.xp >= xpNecesaria
+      ) {
+
+        data.xp -= xpNecesaria;
+
+        data.level++;
+
+        try {
+          await message.channel.send(
+            `🎉 ${message.author} subió a nivel ${data.level}`
+          );
+        } catch {}
+      }
+
+      levels.set(
+        message.author.id,
+        data
+      );
+
+    } catch (err) {
+
+      console.error(
+        "❌ Error en messageCreate:",
+        err
+      );
+    }
+  }
+);
+
+// =====================================================
+// INTERACCIONES
+// =====================================================
+
+client.on(
+  "interactionCreate",
+  async interaction => {
+
+    if (
+      !interaction.isChatInputCommand()
+    ) {
+      return;
+    }
+
+    console.log(
+      `📥 /${interaction.commandName} recibido`
+    );
+
+    try {
+
+      // =================================================
+      // PING
+      // =================================================
+
+      if (
+        interaction.commandName ===
+        "ping"
       ) {
 
         return await interaction.reply(
@@ -286,14 +377,19 @@ client.on(
         );
       }
 
-      // ================= NIVEL =================
+      // =================================================
+      // NIVEL
+      // =================================================
 
       if (
-        interaction.commandName === "nivel"
+        interaction.commandName ===
+        "nivel"
       ) {
 
         const data =
-          levels.get(interaction.user.id) || {
+          levels.get(
+            interaction.user.id
+          ) || {
             xp: 0,
             level: 1
           };
@@ -303,71 +399,142 @@ client.on(
         );
       }
 
-      // ================= HELP =================
+      // =================================================
+      // HELP
+      // =================================================
 
       if (
-        interaction.commandName === "help"
+        interaction.commandName ===
+        "help"
       ) {
 
         return await interaction.reply(
-          "📌 Comandos disponibles:\n\n" +
-          "🏓 `/ping` — Verificar bot\n" +
-          "📊 `/nivel` — Ver tu nivel\n" +
-          "⚠️ `/warn` — Advertir usuario\n" +
-          "📋 `/warns` — Ver advertencias\n" +
-          "🔨 `/ban` — Banear usuario\n" +
-          "👢 `/kick` — Expulsar usuario\n" +
-          "🧹 `/clear` — Borrar mensajes\n" +
-          "👥 `/rol` — Asignar rol\n" +
-          "🧹 `/quitar` — Quitar rol\n" +
-          "🔗 `/invite` — Invitar el bot"
+          "📌 **Comandos disponibles**\n\n" +
+
+          "🏓 `/ping`\n" +
+          "📊 `/nivel`\n" +
+          "⚠️ `/warn`\n" +
+          "📋 `/warns`\n" +
+          "🔨 `/ban`\n" +
+          "👢 `/kick`\n" +
+          "🧹 `/clear`\n" +
+          "👤 `/rol`\n" +
+          "🧹 `/quitar`\n" +
+          "🔗 `/invite`\n" +
+          "🔞 `/hentai`\n" +
+          "🔞 `/nsfw`"
         );
       }
 
-      // ================= INVITE =================
+      // =================================================
+      // INVITE
+      // =================================================
 
       if (
-        interaction.commandName === "invite"
+        interaction.commandName ===
+        "invite"
       ) {
 
-        const clientId =
-          process.env.CLIENT_ID;
-
-        if (!clientId) {
+        if (!process.env.CLIENT_ID) {
 
           return await interaction.reply({
             content:
-              "❌ Falta CLIENT_ID en las variables de entorno.",
+              "❌ Falta CLIENT_ID.",
             ephemeral: true
           });
         }
 
         const invite =
-          `https://discord.com/oauth2/authorize` +
-          `?client_id=${clientId}` +
-          `&permissions=8` +
-          `&scope=bot%20applications.commands`;
+          "https://discord.com/oauth2/authorize" +
+          `?client_id=${process.env.CLIENT_ID}` +
+          "&permissions=8" +
+          "&scope=bot%20applications.commands";
 
         return await interaction.reply(
-          `🔗 Invita el bot:\n${invite}`
+          `🔗 **Invita el bot:**\n${invite}`
         );
       }
 
-      // ================= WARN =================
+      // =================================================
+      // HENTAI
+      // =================================================
 
       if (
-        interaction.commandName === "warn"
+        interaction.commandName ===
+        "hentai"
       ) {
 
         if (
-          !interaction.memberPermissions?.has(
+          !interaction.channel?.nsfw
+        ) {
+
+          return await interaction.reply({
+            content:
+              "❌ Este comando solamente puede utilizarse en un canal marcado como NSFW.",
+            ephemeral: true
+          });
+        }
+
+        const tag =
+          interaction.options.getString(
+            "tag"
+          ) || "neko";
+
+        return await interaction.reply(
+          `🔞 Comando /hentai recibido.\n🏷️ Tag: \`${tag}\`\n\n` +
+          "El comando está reservado para contenido permitido en canales NSFW."
+        );
+      }
+
+      // =================================================
+      // NSFW
+      // =================================================
+
+      if (
+        interaction.commandName ===
+        "nsfw"
+      ) {
+
+        if (
+          !interaction.channel?.nsfw
+        ) {
+
+          return await interaction.reply({
+            content:
+              "❌ Este comando solamente puede utilizarse en un canal marcado como NSFW.",
+            ephemeral: true
+          });
+        }
+
+        const tag =
+          interaction.options.getString(
+            "tag"
+          ) || "default";
+
+        return await interaction.reply(
+          `🔞 Comando /nsfw recibido.\n🏷️ Tag: \`${tag}\``
+        );
+      }
+
+      // =================================================
+      // WARN
+      // =================================================
+
+      if (
+        interaction.commandName ===
+        "warn"
+      ) {
+
+        if (
+          !tienePermiso(
+            interaction,
             PermissionsBitField.Flags.ModerateMembers
           )
         ) {
 
           return await interaction.reply({
             content:
-              "❌ No tienes permisos para advertir usuarios.",
+              "❌ No tienes permiso para advertir usuarios.",
             ephemeral: true
           });
         }
@@ -392,14 +559,17 @@ client.on(
         saveWarns();
 
         return await interaction.reply(
-          `⚠️ ${user.tag} tiene ${warns[user.id]}/3 advertencias`
+          `⚠️ ${user.tag} tiene ${warns[user.id]}/3 advertencias.`
         );
       }
 
-      // ================= WARNS =================
+      // =================================================
+      // WARNS
+      // =================================================
 
       if (
-        interaction.commandName === "warns"
+        interaction.commandName ===
+        "warns"
       ) {
 
         const user =
@@ -417,18 +587,22 @@ client.on(
         }
 
         return await interaction.reply(
-          `📋 ${user.tag} tiene ${warns[user.id] || 0}/3 advertencias`
+          `📋 ${user.tag} tiene ${warns[user.id] || 0}/3 advertencias.`
         );
       }
 
-      // ================= BAN =================
+      // =================================================
+      // BAN
+      // =================================================
 
       if (
-        interaction.commandName === "ban"
+        interaction.commandName ===
+        "ban"
       ) {
 
         if (
-          !interaction.memberPermissions?.has(
+          !tienePermiso(
+            interaction,
             PermissionsBitField.Flags.BanMembers
           )
         ) {
@@ -465,52 +639,49 @@ client.on(
         if (!member) {
 
           return await interaction.reply(
-            "❌ No pude encontrar al usuario en el servidor."
+            "❌ El usuario no está en el servidor."
           );
         }
 
         if (!bot) {
 
           return await interaction.reply(
-            "❌ No pude obtener al bot en el servidor."
+            "❌ No pude obtener al bot."
           );
         }
 
         if (
-          member.id ===
-          interaction.guild.ownerId
+          !puedeModerar(
+            member,
+            bot
+          )
         ) {
 
           return await interaction.reply(
-            "❌ No puedes banear al dueño del servidor."
-          );
-        }
-
-        if (
-          member.roles.highest.position >=
-          bot.roles.highest.position
-        ) {
-
-          return await interaction.reply(
-            "❌ No puedo banear a este usuario porque su rol es igual o superior al mío."
+            "❌ No puedo banear a ese usuario por la jerarquía del servidor."
           );
         }
 
         try {
 
+          const razon =
+            interaction.options.getString(
+              "razon"
+            ) ||
+            "Sin razón especificada";
+
           await member.ban({
-            reason:
-              "Baneado mediante comando /ban"
+            reason: razon
           });
 
           return await interaction.reply(
-            `🔨 ${user.tag} fue baneado.`
+            `🔨 **${user.tag}** fue baneado.\n📝 Razón: ${razon}`
           );
 
         } catch (err) {
 
           console.error(
-            "❌ Error al banear:",
+            "❌ Error en ban:",
             err
           );
 
@@ -520,14 +691,18 @@ client.on(
         }
       }
 
-      // ================= KICK =================
+      // =================================================
+      // KICK
+      // =================================================
 
       if (
-        interaction.commandName === "kick"
+        interaction.commandName ===
+        "kick"
       ) {
 
         if (
-          !interaction.memberPermissions?.has(
+          !tienePermiso(
+            interaction,
             PermissionsBitField.Flags.KickMembers
           )
         ) {
@@ -544,15 +719,6 @@ client.on(
             "usuario"
           );
 
-        if (!user) {
-
-          return await interaction.reply({
-            content:
-              "❌ Usuario no encontrado.",
-            ephemeral: true
-          });
-        }
-
         const member =
           await interaction.guild.members
             .fetch(user.id)
@@ -564,51 +730,43 @@ client.on(
         if (!member) {
 
           return await interaction.reply(
-            "❌ No pude encontrar al usuario en el servidor."
+            "❌ El usuario no está en el servidor."
           );
         }
 
         if (!bot) {
 
           return await interaction.reply(
-            "❌ No pude obtener al bot en el servidor."
+            "❌ No pude obtener al bot."
           );
         }
 
         if (
-          member.id ===
-          interaction.guild.ownerId
+          !puedeModerar(
+            member,
+            bot
+          )
         ) {
 
           return await interaction.reply(
-            "❌ No puedes expulsar al dueño del servidor."
-          );
-        }
-
-        if (
-          member.roles.highest.position >=
-          bot.roles.highest.position
-        ) {
-
-          return await interaction.reply(
-            "❌ No puedo expulsar a este usuario porque su rol es igual o superior al mío."
+            "❌ No puedo expulsar a ese usuario por la jerarquía del servidor."
           );
         }
 
         try {
 
           await member.kick(
-            "Expulsado mediante comando /kick"
+            "Expulsado mediante /kick"
           );
 
           return await interaction.reply(
-            `👢 ${user.tag} fue expulsado.`
+            `👢 **${user.tag}** fue expulsado.`
           );
 
         } catch (err) {
 
           console.error(
-            "❌ Error al expulsar:",
+            "❌ Error en kick:",
             err
           );
 
@@ -618,14 +776,18 @@ client.on(
         }
       }
 
-      // ================= CLEAR =================
+      // =================================================
+      // CLEAR
+      // =================================================
 
       if (
-        interaction.commandName === "clear"
+        interaction.commandName ===
+        "clear"
       ) {
 
         if (
-          !interaction.memberPermissions?.has(
+          !tienePermiso(
+            interaction,
             PermissionsBitField.Flags.ManageMessages
           )
         ) {
@@ -684,14 +846,18 @@ client.on(
         }
       }
 
-      // ================= ROL =================
+      // =================================================
+      // ROL
+      // =================================================
 
       if (
-        interaction.commandName === "rol"
+        interaction.commandName ===
+        "rol"
       ) {
 
         if (
-          !interaction.memberPermissions?.has(
+          !tienePermiso(
+            interaction,
             PermissionsBitField.Flags.ManageRoles
           )
         ) {
@@ -713,15 +879,6 @@ client.on(
             "tipo"
           );
 
-        if (!user || !tipo) {
-
-          return await interaction.reply({
-            content:
-              "❌ Faltan datos.",
-            ephemeral: true
-          });
-        }
-
         const member =
           await interaction.guild.members
             .fetch(user.id)
@@ -741,7 +898,9 @@ client.on(
 
         if (tipo === "mod") {
           roleName = "Mod";
-        } else if (tipo === "admin") {
+        } else if (
+          tipo === "admin"
+        ) {
           roleName = "Admin";
         } else {
           return await interaction.reply(
@@ -759,7 +918,7 @@ client.on(
         if (!role) {
 
           return await interaction.reply(
-            `❌ No existe el rol ${roleName}.`
+            `❌ No existe el rol **${roleName}**.`
           );
         }
 
@@ -769,16 +928,18 @@ client.on(
         ) {
 
           return await interaction.reply(
-            "❌ Ese rol está por encima o al mismo nivel que el rol del bot."
+            "❌ El rol está por encima o al mismo nivel que el rol del bot."
           );
         }
 
         try {
 
-          await member.roles.add(role);
+          await member.roles.add(
+            role
+          );
 
           return await interaction.reply(
-            `✅ Rol **${role.name}** asignado a ${user.tag}.`
+            `✅ **${role.name}** asignado a ${user.tag}.`
           );
 
         } catch (err) {
@@ -794,14 +955,18 @@ client.on(
         }
       }
 
-      // ================= QUITAR =================
+      // =================================================
+      // QUITAR
+      // =================================================
 
       if (
-        interaction.commandName === "quitar"
+        interaction.commandName ===
+        "quitar"
       ) {
 
         if (
-          !interaction.memberPermissions?.has(
+          !tienePermiso(
+            interaction,
             PermissionsBitField.Flags.ManageRoles
           )
         ) {
@@ -822,15 +987,6 @@ client.on(
           interaction.options.getRole(
             "roleo"
           );
-
-        if (!user || !role) {
-
-          return await interaction.reply({
-            content:
-              "❌ Faltan datos.",
-            ephemeral: true
-          });
-        }
 
         const member =
           await interaction.guild.members
@@ -901,7 +1057,9 @@ client.on(
         }
       }
 
-      // ================= DESCONOCIDO =================
+      // =================================================
+      // COMANDO DESCONOCIDO
+      // =================================================
 
       return await interaction.reply({
         content:
@@ -916,7 +1074,10 @@ client.on(
         err
       );
 
-      // Evita responder dos veces
+      // =================================================
+      // EVITAR DOBLE RESPUESTA
+      // =================================================
+
       try {
 
         if (
@@ -935,13 +1096,12 @@ client.on(
               "❌ Ocurrió un error al ejecutar el comando.",
             ephemeral: true
           });
-
         }
 
       } catch (replyError) {
 
         console.error(
-          "❌ No se pudo enviar el mensaje de error:",
+          "❌ No se pudo responder a la interacción:",
           replyError.message
         );
       }
@@ -949,7 +1109,9 @@ client.on(
   }
 );
 
-// ================= LOGIN =================
+// =====================================================
+// LOGIN
+// =====================================================
 
 if (!process.env.TOKEN) {
 
@@ -960,4 +1122,6 @@ if (!process.env.TOKEN) {
   process.exit(1);
 }
 
-client.login(process.env.TOKEN);
+client.login(
+  process.env.TOKEN
+);
