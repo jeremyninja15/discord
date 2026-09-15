@@ -92,7 +92,7 @@ function saveWarns() {
 }
 
 // ================= READY =================
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log(`🔥 ${client.user.tag} activo`);
 });
 
