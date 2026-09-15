@@ -1,295 +1,625 @@
 const {
-Client,
-GatewayIntentBits,
-PermissionsBitField,
-EmbedBuilder,
-ActionRowBuilder,
-ButtonBuilder,
-ButtonStyle,
-AttachmentBuilder
-} = require('discord.js');
+  Client,
+  GatewayIntentBits,
+  PermissionsBitField
+} = require("discord.js");
 
-const fs = require('fs');
-const archiver = require('archiver');
-const { getCrearBotEmbed } = require('./crear');
+const fs = require("fs");
 
 // ================= CLIENT =================
+
 const client = new Client({
-intents: [
-GatewayIntentBits.Guilds,
-GatewayIntentBits.GuildMessages,
-GatewayIntentBits.GuildMembers,
-GatewayIntentBits.MessageContent,
-GatewayIntentBits.DirectMessages
-],
-partials: ['CHANNEL']
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.DirectMessages
+  ],
+  partials: ["CHANNEL"]
 });
 
 // ================= DATOS =================
+
 let warns = {};
 const levels = new Map();
 const warnedTemp = new Map();
 const strikes = {};
 
-if (fs.existsSync('./advertencias.json')) {
-warns = JSON.parse(fs.readFileSync('./advertencias.json'));
+if (fs.existsSync("./advertencias.json")) {
+  try {
+    warns = JSON.parse(
+      fs.readFileSync("./advertencias.json", "utf8")
+    );
+  } catch (err) {
+    console.error("❌ Error leyendo advertencias.json:", err);
+    warns = {};
+  }
 }
 
 function saveWarns() {
-fs.writeFileSync('./advertencias.json', JSON.stringify(warns, null, 2));
+  fs.writeFileSync(
+    "./advertencias.json",
+    JSON.stringify(warns, null, 2)
+  );
 }
 
 // ================= FUNCION PRO =================
+
 function getRazonNoAccion(member, bot, accion) {
-let razones = [];
+  const razones = [];
 
-if (member.id === member.guild.ownerId) {
-razones.push("👑 Es el creador del servidor");
-}
+  if (member.id === member.guild.ownerId) {
+    razones.push("👑 Es el creador del servidor");
+  }
 
-if (member.roles.highest.position >= bot.roles.highest.position) {
-razones.push("🔝 Tiene un rol más alto o igual que el bot");
-}
+  if (member.roles.highest.position >= bot.roles.highest.position) {
+    razones.push("🔝 Tiene un rol más alto o igual que el bot");
+  }
 
-if (accion === "kick" && !bot.permissions.has(PermissionsBitField.Flags.KickMembers)) {
-razones.push("🚫 El bot no tiene permisos para expulsar");
-}
+  if (
+    accion === "kick" &&
+    !bot.permissions.has(PermissionsBitField.Flags.KickMembers)
+  ) {
+    razones.push("🚫 El bot no tiene permisos para expulsar");
+  }
 
-if (accion === "ban" && !bot.permissions.has(PermissionsBitField.Flags.BanMembers)) {
-razones.push("🚫 El bot no tiene permisos para banear");
-}
+  if (
+    accion === "ban" &&
+    !bot.permissions.has(PermissionsBitField.Flags.BanMembers)
+  ) {
+    razones.push("🚫 El bot no tiene permisos para banear");
+  }
 
-return razones;
+  return razones;
 }
 
 // ================= FILTRO =================
-const insultos = require('./insultos.json');
-const blacklist = insultos.palabras;
+
+const insultos = require("./insultos.json");
+const blacklist = Array.isArray(insultos.palabras)
+  ? insultos.palabras
+  : [];
 
 // ================= READY =================
-client.once('ready', () => {
-console.log(🔥 ${client.user.tag} activo);
+
+client.once("clientReady", () => {
+  console.log(`🔥 ${client.user.tag} activo`);
+  console.log(`🏠 Servidores: ${client.guilds.cache.size}`);
 });
 
 // ================= MENSAJES =================
-client.on('messageCreate', async message => {
-if (!message.guild || message.author.bot) return;
 
-const msg = message.content.toLowerCase().replace(/[^a-z0-9]/gi, '');
-const bad = blacklist.some(p => msg.includes(p));
+client.on("messageCreate", async message => {
+  if (!message.guild || message.author.bot) return;
 
-if (bad) {
-if (!warns[message.author.id]) warns[message.author.id] = 0;
+  try {
+    const msg = message.content
+      .toLowerCase()
+      .replace(/[^a-z0-9]/gi, "");
 
-if (!warnedTemp.has(message.author.id)) {
-warnedTemp.set(message.author.id, true);
+    const bad = blacklist.some(p =>
+      msg.includes(String(p).toLowerCase())
+    );
 
-const restantes = 3 - warns[message.author.id];
+    if (bad) {
+      if (!warns[message.author.id]) {
+        warns[message.author.id] = 0;
+      }
 
-return message.reply(
-⚠ ${message.author}\n📊 Advertencias: ${warns[message.author.id]}/3\n❗ Te quedan ${restantes} antes de ser ${strikes[message.author.id] ? "baneado" : "expulsado"}
-);
-}
+      if (!warnedTemp.has(message.author.id)) {
+        warnedTemp.set(message.author.id, true);
 
-warns[message.author.id]++;
-saveWarns();
+        const restantes =
+          3 - warns[message.author.id];
 
-let texto = ⚠ ${message.author.tag} tiene ${warns[message.author.id]}/3 advertencias;
+        return message.reply(
+          `⚠️ ${message.author}\n` +
+          `📊 Advertencias: ${warns[message.author.id]}/3\n` +
+          `❗ Te quedan ${restantes} antes de ser ` +
+          `${strikes[message.author.id] ? "baneado" : "expulsado"}`
+        );
+      }
 
-if (warns[message.author.id] >= 3) {
-const member = message.guild.members.cache.get(message.author.id);
-const bot = message.guild.members.me;
+      warns[message.author.id]++;
+      saveWarns();
 
-if (member) {
-const razones = getRazonNoAccion(member, bot, "kick");
+      let texto =
+        `⚠️ ${message.author.tag} tiene ` +
+        `${warns[message.author.id]}/3 advertencias`;
 
-if (razones.length > 0) {    
-  return message.reply(`❌ No puedo expulsar a ${message.author.tag} porque:\n${razones.join("\n")}`);    
-}    
+      if (warns[message.author.id] >= 3) {
+        const member =
+          message.guild.members.cache.get(
+            message.author.id
+          );
 
-try {    
-  // 🔥 quitar roles peligrosos    
-  const rolesPeligrosos = member.roles.cache.filter(r =>    
-    r.permissions.has(PermissionsBitField.Flags.Administrator) ||    
-    r.permissions.has(PermissionsBitField.Flags.KickMembers) ||    
-    r.permissions.has(PermissionsBitField.Flags.BanMembers)    
-  );    
+        const bot = message.guild.members.me;
 
-  for (const role of rolesPeligrosos.values()) {    
-    if (role.position < bot.roles.highest.position) {    
-      await member.roles.remove(role);    
-    }    
-  }    
+        if (member && bot) {
+          const razones = getRazonNoAccion(
+            member,
+            bot,
+            "kick"
+          );
 
-  if (!strikes[message.author.id]) {    
-    await member.kick();    
-    strikes[message.author.id] = true;    
-    warns[message.author.id] = 0;    
-    texto += `\n👢 Expulsado (segunda oportunidad)`;    
-  } else {    
-    await member.ban();    
-    warns[message.author.id] = 0;    
-    texto += `\n🔨 Baneado por reincidir`;    
-  }    
+          if (razones.length > 0) {
+            return message.reply(
+              `❌ No puedo expulsar a ${message.author.tag} porque:\n` +
+              razones.join("\n")
+            );
+          }
 
-} catch (err) {    
-  console.error(err);    
-  return message.reply(`❌ Error al castigar a ${message.author.tag}`);    
-}
+          try {
+            const rolesPeligrosos =
+              member.roles.cache.filter(role =>
+                role.permissions.has(
+                  PermissionsBitField.Flags.Administrator
+                ) ||
+                role.permissions.has(
+                  PermissionsBitField.Flags.KickMembers
+                ) ||
+                role.permissions.has(
+                  PermissionsBitField.Flags.BanMembers
+                )
+              );
 
-}
-}
+            for (const role of rolesPeligrosos.values()) {
+              if (
+                role.position <
+                bot.roles.highest.position
+              ) {
+                try {
+                  await member.roles.remove(role);
+                } catch (err) {
+                  console.error(
+                    `❌ No se pudo quitar el rol ${role.name}:`,
+                    err.message
+                  );
+                }
+              }
+            }
 
-warnedTemp.delete(message.author.id);
-return message.reply(texto);
+            if (!strikes[message.author.id]) {
+              await member.kick();
 
-}
+              strikes[message.author.id] = true;
+              warns[message.author.id] = 0;
+              saveWarns();
 
-// ===== NIVELES =====
-const data = levels.get(message.author.id) || { xp: 0, level: 1 };
-data.xp += 10;
+              texto +=
+                "\n👢 Expulsado (segunda oportunidad)";
+            } else {
+              await member.ban();
 
-if (data.xp >= data.level * 100) {
-data.level++;
-message.channel.send(🎉 ${message.author} subió a nivel ${data.level});
-}
+              warns[message.author.id] = 0;
+              saveWarns();
 
-levels.set(message.author.id, data);
+              texto +=
+                "\n🔨 Baneado por reincidir";
+            }
+
+          } catch (err) {
+            console.error(
+              "❌ Error al castigar:",
+              err
+            );
+
+            return message.reply(
+              `❌ Error al castigar a ${message.author.tag}`
+            );
+          }
+        }
+      }
+
+      warnedTemp.delete(message.author.id);
+
+      return message.reply(texto);
+    }
+
+    // ================= NIVELES =================
+
+    const data =
+      levels.get(message.author.id) || {
+        xp: 0,
+        level: 1
+      };
+
+    data.xp += 10;
+
+    if (data.xp >= data.level * 100) {
+      data.level++;
+
+      await message.channel.send(
+        `🎉 ${message.author} subió a nivel ${data.level}`
+      );
+    }
+
+    levels.set(message.author.id, data);
+
+  } catch (err) {
+    console.error(
+      "❌ Error en messageCreate:",
+      err
+    );
+  }
 });
 
 // ================= INTERACCIONES =================
-client.on('interactionCreate', async interaction => {
-try {
 
-if (interaction.isChatInputCommand()) {
+client.on("interactionCreate", async interaction => {
+  try {
+    if (!interaction.isChatInputCommand()) {
+      return;
+    }
 
-switch (interaction.commandName) {
+    console.log(
+      `📥 /${interaction.commandName} recibido`
+    );
 
-case "ping":    
-  return interaction.reply("🏓 Pong!");
+    switch (interaction.commandName) {
 
-case "quitar": {
-if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ManageRoles)) {
-return interaction.reply({ content: "❌ No tienes permisos", ephemeral: true });
-}
+      // ================= PING =================
 
-const user = interaction.options.getUser("usuario");
-const role = interaction.options.getRole("roleo");
-const member = interaction.guild.members.cache.get(user.id);
-const bot = interaction.guild.members.me;
+      case "ping": {
+        return interaction.reply("🏓 Pong!");
+      }
 
-if (!member) {
-return interaction.reply("❌ Usuario no encontrado");
-}
+      // ================= QUITAR =================
 
-// 🔥 validaciones PRO
-if (member.id === interaction.guild.ownerId) {
-return interaction.reply("❌ No puedes quitar roles al creador");
-}
+      case "quitar": {
+        if (
+          !interaction.memberPermissions?.has(
+            PermissionsBitField.Flags.ManageRoles
+          )
+        ) {
+          return interaction.reply({
+            content: "❌ No tienes permisos",
+            ephemeral: true
+          });
+        }
 
-if (role.position >= bot.roles.highest.position) {
-return interaction.reply("❌ Ese rol es más alto que el bot");
-}
+        const user =
+          interaction.options.getUser("usuario");
 
-if (!member.roles.cache.has(role.id)) {
-return interaction.reply(❌ ${user.tag} no tiene ese rol);
-}
+        const role =
+          interaction.options.getRole("roleo");
 
-try {
-await member.roles.remove(role);
-return interaction.reply(🧹 Rol ${role.name} quitado a ${user.tag});
-} catch (err) {
-return interaction.reply("❌ Error al quitar el rol");
-}
-}
+        const member =
+          interaction.guild.members.cache.get(
+            user.id
+          );
 
-case "nivel": {
-const data = levels.get(interaction.user.id) || { xp: 0, level: 1 };
-return interaction.reply(📊 Nivel ${data.level} | XP ${data.xp});
-}
+        const bot =
+          interaction.guild.members.me;
 
-case "ban": {    
-  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.BanMembers))    
-    return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });    
+        if (!member) {
+          return interaction.reply(
+            "❌ Usuario no encontrado"
+          );
+        }
 
-  const user = interaction.options.getUser("usuario");    
-  const member = interaction.guild.members.cache.get(user.id);    
-  const bot = interaction.guild.members.me;    
+        if (!role) {
+          return interaction.reply(
+            "❌ Rol no encontrado"
+          );
+        }
 
-  if (!member)    
-    return interaction.reply("❌ Usuario no encontrado");    
+        if (!bot) {
+          return interaction.reply(
+            "❌ No pude obtener el miembro del bot"
+          );
+        }
 
-  const razones = getRazonNoAccion(member, bot, "ban");    
+        if (member.id === interaction.guild.ownerId) {
+          return interaction.reply(
+            "❌ No puedes quitar roles al creador"
+          );
+        }
 
-  if (razones.length > 0) {    
-    return interaction.reply(`❌ No puedo banear a **${user.tag}** porque:\n${razones.join("\n")}`);    
-  }    
+        if (
+          !bot.permissions.has(
+            PermissionsBitField.Flags.ManageRoles
+          )
+        ) {
+          return interaction.reply(
+            "❌ El bot no tiene permiso para gestionar roles"
+          );
+        }
 
-  try {    
-    const rolesPeligrosos = member.roles.cache.filter(r =>    
-      r.permissions.has(PermissionsBitField.Flags.Administrator) ||    
-      r.permissions.has(PermissionsBitField.Flags.KickMembers) ||    
-      r.permissions.has(PermissionsBitField.Flags.BanMembers)    
-    );    
+        if (
+          role.position >=
+          bot.roles.highest.position
+        ) {
+          return interaction.reply(
+            "❌ Ese rol es más alto o igual que el rol del bot"
+          );
+        }
 
-    for (const role of rolesPeligrosos.values()) {    
-      if (role.position < bot.roles.highest.position) {    
-        await member.roles.remove(role);    
-      }    
-    }    
+        if (!member.roles.cache.has(role.id)) {
+          return interaction.reply(
+            `❌ ${user.tag} no tiene ese rol`
+          );
+        }
 
-    await member.ban();    
-    return interaction.reply(`🔨 ${user.tag} baneado\n🧹 Roles peligrosos eliminados`);    
-  } catch (err) {    
-    return interaction.reply(`❌ Error al banear a **${user.tag}**`);    
-  }    
-}    
+        try {
+          await member.roles.remove(role);
 
-case "kick": {    
-  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.KickMembers))    
-    return interaction.reply({ content: "❌ Sin permisos", ephemeral: true });    
+          return interaction.reply(
+            `🧹 Rol ${role.name} quitado a ${user.tag}`
+          );
 
-  const user = interaction.options.getUser("usuario");    
-  const member = interaction.guild.members.cache.get(user.id);    
-  const bot = interaction.guild.members.me;    
+        } catch (err) {
+          console.error(
+            "❌ Error quitando rol:",
+            err
+          );
 
-  if (!member)    
-    return interaction.reply("❌ Usuario no encontrado");    
+          return interaction.reply(
+            "❌ Error al quitar el rol"
+          );
+        }
+      }
 
-  const razones = getRazonNoAccion(member, bot, "kick");    
+      // ================= NIVEL =================
 
-  if (razones.length > 0) {    
-    return interaction.reply(`❌ No puedo expulsar a **${user.tag}** porque:\n${razones.join("\n")}`);    
-  }    
+      case "nivel": {
+        const data =
+          levels.get(interaction.user.id) || {
+            xp: 0,
+            level: 1
+          };
 
-  try {    
-    const rolesPeligrosos = member.roles.cache.filter(r =>    
-      r.permissions.has(PermissionsBitField.Flags.Administrator) ||    
-      r.permissions.has(PermissionsBitField.Flags.KickMembers) ||    
-      r.permissions.has(PermissionsBitField.Flags.BanMembers)    
-    );    
+        return interaction.reply(
+          `📊 Nivel ${data.level} | XP ${data.xp}`
+        );
+      }
 
-    for (const role of rolesPeligrosos.values()) {    
-      if (role.position < bot.roles.highest.position) {    
-        await member.roles.remove(role);    
-      }    
-    }    
+      // ================= BAN =================
 
-    await member.kick();    
-    return interaction.reply(`👢 ${user.tag} expulsado\n🧹 Roles peligrosos eliminados`);    
-  } catch (err) {    
-    return interaction.reply(`❌ Error al expulsar a **${user.tag}**`);    
-  }    
-}
+      case "ban": {
+        if (
+          !interaction.memberPermissions?.has(
+            PermissionsBitField.Flags.BanMembers
+          )
+        ) {
+          return interaction.reply({
+            content: "❌ Sin permisos",
+            ephemeral: true
+          });
+        }
 
-}
-}
+        const user =
+          interaction.options.getUser("usuario");
 
-} catch (error) {
-console.error(error);
-}
+        const member =
+          interaction.guild.members.cache.get(
+            user.id
+          );
+
+        const bot =
+          interaction.guild.members.me;
+
+        if (!member) {
+          return interaction.reply(
+            "❌ Usuario no encontrado"
+          );
+        }
+
+        if (!bot) {
+          return interaction.reply(
+            "❌ No pude obtener el miembro del bot"
+          );
+        }
+
+        const razones =
+          getRazonNoAccion(
+            member,
+            bot,
+            "ban"
+          );
+
+        if (razones.length > 0) {
+          return interaction.reply(
+            `❌ No puedo banear a **${user.tag}** porque:\n` +
+            razones.join("\n")
+          );
+        }
+
+        try {
+          const rolesPeligrosos =
+            member.roles.cache.filter(role =>
+              role.permissions.has(
+                PermissionsBitField.Flags.Administrator
+              ) ||
+              role.permissions.has(
+                PermissionsBitField.Flags.KickMembers
+              ) ||
+              role.permissions.has(
+                PermissionsBitField.Flags.BanMembers
+              )
+            );
+
+          for (const role of rolesPeligrosos.values()) {
+            if (
+              role.position <
+              bot.roles.highest.position
+            ) {
+              try {
+                await member.roles.remove(role);
+              } catch (err) {
+                console.error(
+                  `❌ No se pudo quitar ${role.name}:`,
+                  err.message
+                );
+              }
+            }
+          }
+
+          await member.ban();
+
+          return interaction.reply(
+            `🔨 ${user.tag} baneado\n` +
+            `🧹 Roles peligrosos eliminados`
+          );
+
+        } catch (err) {
+          console.error(
+            "❌ Error al banear:",
+            err
+          );
+
+          return interaction.reply(
+            `❌ Error al banear a **${user.tag}**`
+          );
+        }
+      }
+
+      // ================= KICK =================
+
+      case "kick": {
+        if (
+          !interaction.memberPermissions?.has(
+            PermissionsBitField.Flags.KickMembers
+          )
+        ) {
+          return interaction.reply({
+            content: "❌ Sin permisos",
+            ephemeral: true
+          });
+        }
+
+        const user =
+          interaction.options.getUser("usuario");
+
+        const member =
+          interaction.guild.members.cache.get(
+            user.id
+          );
+
+        const bot =
+          interaction.guild.members.me;
+
+        if (!member) {
+          return interaction.reply(
+            "❌ Usuario no encontrado"
+          );
+        }
+
+        if (!bot) {
+          return interaction.reply(
+            "❌ No pude obtener el miembro del bot"
+          );
+        }
+
+        const razones =
+          getRazonNoAccion(
+            member,
+            bot,
+            "kick"
+          );
+
+        if (razones.length > 0) {
+          return interaction.reply(
+            `❌ No puedo expulsar a **${user.tag}** porque:\n` +
+            razones.join("\n")
+          );
+        }
+
+        try {
+          const rolesPeligrosos =
+            member.roles.cache.filter(role =>
+              role.permissions.has(
+                PermissionsBitField.Flags.Administrator
+              ) ||
+              role.permissions.has(
+                PermissionsBitField.Flags.KickMembers
+              ) ||
+              role.permissions.has(
+                PermissionsBitField.Flags.BanMembers
+              )
+            );
+
+          for (const role of rolesPeligrosos.values()) {
+            if (
+              role.position <
+              bot.roles.highest.position
+            ) {
+              try {
+                await member.roles.remove(role);
+              } catch (err) {
+                console.error(
+                  `❌ No se pudo quitar ${role.name}:`,
+                  err.message
+                );
+              }
+            }
+          }
+
+          await member.kick();
+
+          return interaction.reply(
+            `👢 ${user.tag} expulsado\n` +
+            `🧹 Roles peligrosos eliminados`
+          );
+
+        } catch (err) {
+          console.error(
+            "❌ Error al expulsar:",
+            err
+          );
+
+          return interaction.reply(
+            `❌ Error al expulsar a **${user.tag}**`
+          );
+        }
+      }
+
+      // ================= COMANDO DESCONOCIDO =================
+
+      default: {
+        return interaction.reply({
+          content: "❌ Comando no reconocido.",
+          ephemeral: true
+        });
+      }
+    }
+
+  } catch (error) {
+    console.error(
+      "❌ Error en interactionCreate:",
+      error
+    );
+
+    try {
+      if (
+        interaction.deferred ||
+        interaction.replied
+      ) {
+        await interaction.editReply(
+          "❌ Ocurrió un error al ejecutar el comando."
+        );
+      } else {
+        await interaction.reply({
+          content:
+            "❌ Ocurrió un error al ejecutar el comando.",
+          ephemeral: true
+        });
+      }
+    } catch (replyError) {
+      console.error(
+        "❌ No se pudo responder a la interacción:",
+        replyError
+      );
+    }
+  }
 });
 
 // ================= LOGIN =================
-client.login(process.env.TOKEN);
 
+if (!process.env.TOKEN) {
+  console.error("❌ Falta la variable TOKEN.");
+  process.exit(1);
+}
+
+client.login(process.env.TOKEN);
